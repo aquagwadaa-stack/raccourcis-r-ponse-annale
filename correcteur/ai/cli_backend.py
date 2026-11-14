@@ -145,7 +145,7 @@ class CliBackend:
         version = (done.stdout or done.stderr).strip().splitlines()[0:1]
         if done.returncode != 0 or not version:
             raise BackendError("Claude Code ne démarre pas.", detail=(done.stderr or done.stdout)[:500])
-        return f"Claude Code {version[0]} (abonnement Claude) : {executable}"
+        return f"abonnement Claude via {version[0]} ({executable})"
 
     # -- mécanique ---------------------------------------------------------
     def _find(self) -> str:

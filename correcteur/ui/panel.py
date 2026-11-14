@@ -112,6 +112,11 @@ class AnswerPanel(QWidget):
             self._rows[key] = _Row(question, compare, self._counter)
         self._refresh()
 
+    def end_capture(self, capture_id: int) -> None:
+        """Retire la ligne d'attente d'une capture sans rien afficher d'autre."""
+        self._pending.pop(capture_id, None)
+        self._refresh()
+
     def set_error(self, capture_id: int, message: str) -> None:
         self._pending.pop(capture_id, None)
         self._message = (message, COLOR_ERROR)
