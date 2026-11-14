@@ -58,8 +58,10 @@ class AIConfig:
     mode_rapide: bool = False  # sortie ~2,5x plus rapide, tarif doublé (modèles compatibles)
     # --- Claude Code en ligne de commande (abonnement Claude, sans clé API) ---
     cli_commande: str = "claude"
-    cli_modele: str = ""  # vide = modèle par défaut du compte
-    cli_modele_lecture: str = ""
+    cli_modele: str = ""  # modèle qui corrige ; vide = modèle par défaut du compte
+    # Lire la capture est une tâche simple : un modèle léger la fait aussi bien, plus vite,
+    # et entame beaucoup moins le quota de l'abonnement. Vide = même modèle que cli_modele.
+    cli_modele_lecture: str = "haiku"
     # --- commun ---
     extraits_par_question: int = 8
     justifications: bool = False  # ajoute une phrase d'explication dans l'historique

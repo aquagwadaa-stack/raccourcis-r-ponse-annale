@@ -28,8 +28,8 @@ mode_rapide = false                  # true = réponse environ 2 fois plus rapid
 
 # --- avec l'abonnement Claude (Claude Code installé sur le PC) ---
 cli_commande = "claude"
-cli_modele = ""                      # vide = modèle par défaut de ton compte
-cli_modele_lecture = ""
+cli_modele = ""                      # modèle qui corrige : vide = celui de ton compte, ou "opus", "sonnet", "haiku"
+cli_modele_lecture = "haiku"         # modèle qui lit la capture : "haiku" est rapide et économe en quota
 
 # --- commun ---
 extraits_par_question = 8            # nombre de passages de cours fournis par question
