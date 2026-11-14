@@ -70,6 +70,8 @@ def cmd_run(args) -> int:
         QMessageBox.critical(None, "Correcteur d'annales", f"Erreur dans config.toml :\n{exc}")
         return 2
     setup_logging(cfg.history_dir)
+    # Sans console, une erreur non interceptée passerait inaperçue : elle va au journal.
+    sys.excepthook = lambda kind, value, trace: log.error("Erreur non interceptée", exc_info=(kind, value, trace))
     # Deux exemplaires se disputeraient les mêmes raccourcis.
     lock = QLockFile(str(Path(tempfile.gettempdir()) / "correcteur-annales.lock"))
     if not lock.tryLock(200):
@@ -266,6 +268,30 @@ COMMANDS = {
 }
 
 
+def _report_startup_crash(args) -> None:
+    """L'application n'a pas pu démarrer : laisse une trace lisible, même sans console."""
+    import traceback
+
+    details = traceback.format_exc()
+    base = Path(args.dossier).expanduser() if args.dossier else default_base_dir()
+    report = base / "erreur_demarrage.txt"
+    try:
+        report.write_text(details, encoding="utf-8")
+    except OSError:
+        pass
+    try:
+        from PySide6.QtWidgets import QApplication, QMessageBox
+
+        _app = QApplication.instance() or QApplication(sys.argv[:1])
+        QMessageBox.critical(
+            None,
+            "Correcteur d'annales",
+            f"Le correcteur n'a pas pu démarrer.\nLe détail est dans le fichier :\n{report}",
+        )
+    except Exception:
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -273,6 +299,10 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"Erreur de configuration : {exc}")
         return 2
+    except Exception:
+        if args.commande is None:
+            _report_startup_crash(args)
+        raise
 
 
 if __name__ == "__main__":
