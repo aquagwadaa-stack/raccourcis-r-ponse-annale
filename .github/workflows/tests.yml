@@ -39,3 +39,6 @@ jobs:
           if errorlevel 1 exit /b 1
           call diagnostic.bat < nul
           .venv\Scripts\python.exe -m correcteur --version
+      - name: Bureau Windows réel (transparence, raccourci)
+        if: runner.os == 'Windows'
+        run: python tests/windows_real_check.py
