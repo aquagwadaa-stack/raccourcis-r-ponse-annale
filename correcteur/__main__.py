@@ -18,8 +18,8 @@ EXAMPLE_CONFIG = "config.exemple.toml"
 
 
 def _example_config_path() -> Path | None:
-    """Fichier d'exemple livré avec le programme (dossier du dépôt ou de l'exécutable)."""
-    roots = [Path(__file__).resolve().parent.parent, Path(getattr(sys, "_MEIPASS", "")), default_base_dir()]
+    """Fichier d'exemple livré avec le programme."""
+    roots = [Path(__file__).resolve().parent.parent, default_base_dir()]
     for root in roots:
         candidate = root / EXAMPLE_CONFIG
         if candidate.is_file():

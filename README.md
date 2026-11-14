@@ -91,7 +91,7 @@ Avec une clé API, rien n'a pu être mesuré (aucune clé n'était disponible pe
 - Les pages scannées (images sans texte) ne sont pas lisibles par l'index : l'indexation te dit lesquelles.
 - Les schémas et images des cours ne sont pas pris en compte, seulement le texte.
 - Une question n'est corrigée que si elle est entièrement visible à l'écran.
-- La partie propre à Windows (raccourcis, lancement) a été écrite et testée automatiquement, mais pas encore essayée sur un vrai PC : dis-moi ce qui coince.
+- Testé automatiquement sur une machine Windows (installation, raccourci F8, transparence des coches), avec un écran à 100 %. Restent à confirmer sur ton PC : l'appel à Claude Code sous Windows et l'alignement des coches avec un affichage à 150 ou 200 %.
 
 ## En cas de problème
 

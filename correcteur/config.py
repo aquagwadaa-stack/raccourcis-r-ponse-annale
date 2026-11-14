@@ -10,7 +10,6 @@ dossier de l'application.
 from __future__ import annotations
 
 import os
-import sys
 import tomllib
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
@@ -136,16 +135,10 @@ class Config:
 
 
 def default_base_dir() -> Path:
-    """Dossier de l'application.
-
-    Ordre : variable ``CORRECTEUR_DOSSIER``, dossier de l'exécutable (version
-    empaquetée), sinon dossier courant.
-    """
+    """Dossier de l'application : variable ``CORRECTEUR_DOSSIER``, sinon dossier courant."""
     env = os.environ.get(ENV_BASE_DIR)
     if env:
         return Path(env).expanduser().resolve()
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
     return Path.cwd()
 
 
