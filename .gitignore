@@ -1,0 +1,18 @@
+# Données personnelles : ne jamais publier
+cours/
+index/
+historique/
+captures/
+config.toml
+cle_api.txt
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+*.spec

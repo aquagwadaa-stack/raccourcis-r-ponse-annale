@@ -1,0 +1,46 @@
+# Réglages du correcteur d'annales.
+# Copie ce fichier sous le nom "config.toml" puis modifie ce que tu veux.
+# Tout est facultatif : une ligne supprimée reprend sa valeur par défaut.
+
+[raccourcis]
+corriger = "f8"         # capture l'écran et lance la correction
+masquer  = "f9"         # affiche / masque les réponses
+effacer  = "shift+f8"   # vide la liste (quand tu changes d'annale)
+# Exemples valides : "f8", "ctrl+alt+c", "ctrl+shift+espace", "pause"
+
+[affichage]
+mode = "lettres"        # "lettres" (ex. « 1 : ACD »), "coches" (✓ sur les bonnes réponses) ou "les_deux"
+position = "bas_droite" # "bas_droite", "bas_gauche", "haut_droite", "haut_gauche"
+taille_police = 20
+opacite = 0.92
+duree_coches_s = 30     # les coches s'effacent après ce délai (0 = elles restent)
+comparer_mes_reponses = true  # signale quand tes cases cochées diffèrent de la correction
+
+[ia]
+backend = "auto"        # "auto", "api" (clé API Anthropic) ou "claude_cli" (abonnement Claude)
+
+# --- avec une clé API ---
+modele_reponse = "claude-opus-5-5"   # modèle qui corrige
+modele_lecture = "claude-opus-5-5"   # modèle qui lit la capture ("claude-haiku-5-5" = plus rapide et moins cher)
+effort_reponse = "high"              # "low", "medium", "high", "xhigh", "max" : plus haut = plus fiable, plus lent
+effort_lecture = "low"
+mode_rapide = false                  # true = réponse environ 2 fois plus rapide, tarif doublé
+
+# --- avec l'abonnement Claude (Claude Code installé sur le PC) ---
+cli_commande = "claude"
+cli_modele = ""                      # vide = modèle par défaut de ton compte
+cli_modele_lecture = ""
+
+# --- commun ---
+extraits_par_question = 8            # nombre de passages de cours fournis par question
+justifications = false               # true = une phrase d'explication par question dans l'historique
+delai_max_s = 150
+
+[cours]
+dossier = "cours"       # mets tes PDF / PowerPoint / Word / annales corrigées ici
+index = "index"
+
+[historique]
+actif = true            # garde la trace de chaque correction dans le dossier "historique"
+dossier = "historique"
+garder_captures = false

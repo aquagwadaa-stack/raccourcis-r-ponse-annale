@@ -1,0 +1,15 @@
+[project]
+name = "correcteur-annales"
+version = "0.1.0"
+description = "Raccourci clavier : capture l'écran et affiche les réponses d'une annale de médecine"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools]
+packages = ["correcteur", "correcteur.ai", "correcteur.courses", "correcteur.ui"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
