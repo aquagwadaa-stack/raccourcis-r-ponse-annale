@@ -66,9 +66,14 @@ class TabletteTest {
         server.shutdown()
     }
 
-    /** Lance une commande et attend sa fin (fermer le canal trop tôt l'interromprait). */
+    /**
+     * Lance une commande et attend sa fin (fermer le canal trop tôt l'interromprait). Sans
+     * FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES, l'outil de test mettrait en sourdine tous les
+     * services d'accessibilité, dont celui qu'on veut essayer.
+     */
     private fun shell(command: String): String {
-        val output = instrumentation.uiAutomation.executeShellCommand(command)
+        val automation = instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+        val output = automation.executeShellCommand(command)
         return android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes().decodeToString() }
     }
 
