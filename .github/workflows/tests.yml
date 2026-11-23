@@ -54,6 +54,12 @@ jobs:
           rem Sans compte connecté, le correcteur doit trouver Claude Code et renvoyer vers connecter_claude.bat.
           findstr /c:"connecter_claude.bat" diagnostic.txt
           if errorlevel 1 exit /b 1
+          rem Le motif utilisé par connecter_claude.bat pour savoir si le compte est connecté :
+          rem il ne doit pas reconnaître l'état réel (déconnecté), mais reconnaître la ligne « connecté ».
+          "%USERPROFILE%\.local\bin\claude.exe" auth status --json | findstr /r /c:"loggedIn.: *true"
+          if not errorlevel 1 exit /b 1
+          echo   "loggedIn": true, | findstr /r /c:"loggedIn.: *true"
+          if errorlevel 1 exit /b 1
       - name: Bureau Windows réel (transparence, raccourci)
         if: runner.os == 'Windows'
         run: python tests/windows_real_check.py
