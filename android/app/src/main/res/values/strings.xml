@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Correcteur</string>
+    <string name="service_label">Correcteur d\'annales</string>
+    <string name="service_description">Affiche un petit point : touche-le pour capturer l\'écran. La capture est envoyée à Claude (Anthropic) avec ta clé API, et les lettres à cocher s\'affichent en tout petit dans un coin. Rien d\'autre n\'est lu ni envoyé.</string>
+</resources>

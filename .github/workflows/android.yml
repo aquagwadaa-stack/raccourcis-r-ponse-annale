@@ -1,0 +1,61 @@
+name: Appli tablette
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write  # publication de l'APK dans une « release »
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Tests de l'appli (hors Android)
+        run: ./gradlew --no-daemon testDebugUnitTest
+      - name: Construction des APK
+        run: ./gradlew --no-daemon assembleRelease assembleDebug assembleDebugAndroidTest
+      - name: Accélération de l'émulateur
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Essais sur un émulateur Android 16 (capture, appel à Claude simulé, affichage)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          working-directory: android
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
+      - name: Rapports des essais
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-android
+          path: android/app/build/reports
+      - name: Publication de l'APK
+        if: github.ref_name == 'ccr-bc1aaef1-31d5pn'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk correcteur-tablette.apk
+          gh release delete tablette --cleanup-tag --yes || true
+          gh release create tablette correcteur-tablette.apk \
+            --target "$GITHUB_SHA" \
+            --title "Correcteur pour tablette Android" \
+            --notes "Appli du correcteur d'annales pour tablette Android (11 ou plus). Installation : voir la rubrique Tablette du README."
