@@ -48,7 +48,7 @@ class HotkeyConfig:
 class DisplayConfig:
     mode: str = "lettres"  # "lettres" | "coches" | "les_deux"
     position: str = "bas_droite"
-    taille_police: int = 11
+    taille_police: int = 4  # choisi par l'étudiant ; se change depuis l'icône
     opacite: float = 0.9
     reponses_max: int = 2  # les plus anciennes disparaissent au-delà
     disposition: str = "colonne"  # "colonne" : une question par ligne ; "ligne" : tout sur une ligne
@@ -144,8 +144,8 @@ class Config:
             )
         if not 0.2 <= self.affichage.opacite <= 1.0:
             raise ConfigError("affichage.opacite doit être compris entre 0.2 et 1.0")
-        if not 6 <= self.affichage.taille_police <= 40:
-            raise ConfigError("affichage.taille_police doit être compris entre 6 et 40")
+        if not 1 <= self.affichage.taille_police <= 40:
+            raise ConfigError("affichage.taille_police doit être compris entre 1 et 40")
         if self.affichage.reponses_max < 1:
             raise ConfigError("affichage.reponses_max doit valoir au moins 1")
         if self.ia.extraits_par_question < 0:

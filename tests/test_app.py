@@ -207,6 +207,9 @@ def test_demarrage_mode_enregistre_et_pause(qapp, make_app, tmp_path):
     assert 'mode = "coches"' in (tmp_path / "config.toml").read_text(encoding="utf-8")
     application.set_mode("inconnu")
     assert application.cfg.affichage.mode == "coches"
+    application.set_font_size(11)
+    assert application.panel.display.taille_police == 11
+    assert "taille_police = 11" in (tmp_path / "config.toml").read_text(encoding="utf-8")
     application.set_hotkeys_paused(True)
     assert "pause" in application.panel.lines()[0]
     application.set_hotkeys_paused(False)

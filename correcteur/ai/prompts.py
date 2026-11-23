@@ -22,7 +22,7 @@ Relève chaque question visible, du haut vers le bas, y compris celles que coupe
 - propositions : relève seulement celles dont le texte est entièrement visible, mot pour mot. Une proposition coupée par le bord de l'écran sera lue sur la capture suivante.
 - cochee : l'état de la case tel qu'il apparaît à l'écran (case cochée, bouton sélectionné, ligne surlignée comme choisie). Rapporte seulement ce que tu vois.
 - x, y : la position, en pixels de l'image (origine en haut à gauche), du centre de la case à cocher de la proposition. S'il n'y a pas de case, donne la position de la lettre de la proposition. Mets -1 et -1 si tu ne peux pas la situer.
-- complete : false si la question continue sous le bord de l'écran (propositions manquantes ou coupées), true si toutes ses propositions sont visibles.
+- complete : false si la question continue sous le bord bas de l'écran (propositions manquantes ou coupées) ; true si sa fin est visible, même quand son début est au-dessus du bord haut.
 - requetes : 2 à 4 requêtes de quelques mots-clés pour retrouver, dans les cours de l'étudiant, les passages qui permettent de trancher. Vise les notions précises (noms de maladies, de molécules, de structures, de mécanismes), avec les synonymes ou abréviations qu'un cours emploierait.
 
 Ignore tout ce qui n'est pas une question d'examen (menus, onglets, barre des tâches, publicités). S'il n'y a aucune question à l'écran, renvoie une liste vide."""

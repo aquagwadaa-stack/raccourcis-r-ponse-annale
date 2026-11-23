@@ -78,24 +78,42 @@ def main() -> int:
     # 2. Ailleurs, la fenêtre des coches laisse-t-elle voir la page (blanche) ?
     far = pixel(screen.geometry().width() * 0.6, screen.geometry().height() * 0.15)
     out["far_pixel"] = [far.red(), far.green(), far.blue()]
-    # 3. Le panneau est-il visible (fond sombre) ?
-    inside = panel.frameGeometry().center() - screen.geometry().topLeft()
-    dark = pixel(inside.x() - panel.width() * 0.4, inside.y())
-    out["panel_pixel"] = [dark.red(), dark.green(), dark.blue()]
+    # 3. L'affichage (texte fin, sans fond) se voit-il sur la page blanche ?
+    frame = panel.frameGeometry().translated(-screen.geometry().topLeft())
+    dark = 0
+    for x in range(frame.left(), frame.right() + 1):
+        for y in range(frame.top(), frame.bottom() + 1):
+            color = pixel(x, y)
+            if max(color.red(), color.green(), color.blue()) < 220:  # texte fin et lissé : gris plus que noir
+                dark += 1
+    out["panel_dark_pixels"] = dark
     out["same_screen_with_panel"] = cap.same_screen(capture, panel.frameGeometry())
     marks.clear()
+
+    # 4. Un clic sur la petite croix ferme l'affichage sans prendre le clavier.
+    import ctypes
+
+    user32 = ctypes.windll.user32 if sys.platform == "win32" else None
+    closed: list[bool] = []
+    panel.close_requested.connect(lambda: (closed.append(True), panel.hide()))
+    cross = panel.mapToGlobal(panel._close_rect.center())
+    if sys.platform == "win32":
+        user32.SetCursorPos(int(cross.x() * ratio), int(cross.y() * ratio))
+        pump(app, 0.3)
+        user32.mouse_event(0x0002, 0, 0, 0, 0)  # bouton gauche enfoncé
+        user32.mouse_event(0x0004, 0, 0, 0, 0)  # relâché
+        pump(app, 0.8)
+    out["closed_by_cross"] = bool(closed) and not panel.isVisible()
+    out["panel_never_active"] = not panel.isActiveWindow()
     panel.hide()
 
-    # 4. Le raccourci global : déclaration puis frappe simulée.
+    # 5. Les raccourcis : « ! » (Maj + 1 sur le clavier QWERTY de la machine de test) et F8.
     received: list[str] = []
     manager = HotkeyManager()
     manager.triggered.connect(received.append)
-    out["hotkey_errors"] = manager.start({"corriger": "ctrl+alt+shift+f11", "masquer": "f8"})
+    out["hotkey_errors"] = manager.start({"corriger": "!", "masquer": "f8"})
     if sys.platform == "win32":
-        import ctypes
-
-        user32 = ctypes.windll.user32
-        for keys in ([0x11, 0x12, 0x10, 0x7A], [0x77]):  # ctrl+alt+maj+F11, puis F8 seul
+        for keys in ([0x10, 0x31], [0x77]):  # Maj + 1, puis F8 seul
             for vk in keys:
                 user32.keybd_event(vk, 0, 0, 0)
             for vk in reversed(keys):

@@ -44,7 +44,7 @@ dossier = "mes cours"
 def test_defauts_actuels(tmp_path):
     cfg = load_config(tmp_path)
     assert cfg.raccourcis.corriger == "!"
-    assert (cfg.affichage.taille_police, cfg.affichage.reponses_max, cfg.affichage.disposition) == (11, 2, "colonne")
+    assert (cfg.affichage.taille_police, cfg.affichage.reponses_max, cfg.affichage.disposition) == (4, 2, "colonne")
 
 
 def test_exemple_valide_et_a_jour(tmp_path):
@@ -52,7 +52,7 @@ def test_exemple_valide_et_a_jour(tmp_path):
     assert tomllib.loads(example)["version"] == CONFIG_VERSION
     (tmp_path / "config.toml").write_text(example, encoding="utf-8")
     cfg = load_config(tmp_path)
-    assert cfg.raccourcis.corriger == "!" and cfg.affichage.taille_police == 11
+    assert cfg.raccourcis.corriger == "!" and cfg.affichage.taille_police == 4
 
 
 def test_migration_garde_les_choix_et_remplace_les_anciens_defauts(tmp_path):
@@ -61,7 +61,7 @@ def test_migration_garde_les_choix_et_remplace_les_anciens_defauts(tmp_path):
     assert message and "affichage.mode" in message and "ia.cli_modele" in message and "cours.dossier" in message
     cfg = load_config(tmp_path)
     assert cfg.raccourcis.corriger == "!"  # ancienne valeur par défaut : remplacée
-    assert cfg.affichage.taille_police == 11 and cfg.affichage.opacite == 0.9
+    assert cfg.affichage.taille_police == 4 and cfg.affichage.opacite == 0.9
     assert cfg.affichage.mode == "coches" and cfg.ia.cli_modele == "opus" and cfg.cours.dossier == "mes cours"
     assert (tmp_path / BACKUP_FILENAME).read_text(encoding="utf-8") == V1_CONFIG
     text = (tmp_path / "config.toml").read_text(encoding="utf-8")
@@ -100,7 +100,7 @@ def test_enregistrement_depuis_l_application(tmp_path):
     [
         ("affichage", 'disposition = "diagonale"', "disposition"),
         ("affichage", "reponses_max = 0", "reponses_max"),
-        ("affichage", "taille_police = 2", "taille_police"),
+        ("affichage", "taille_police = 0", "taille_police"),
     ],
 )
 def test_valeurs_refusees(tmp_path, section, line, message):
@@ -122,4 +122,4 @@ def test_ancienne_config_du_depot_migre(tmp_path):
     message = migrate_config(tmp_path)
     assert message and "conservés" not in message  # rien n'avait été modifié
     cfg = load_config(tmp_path)
-    assert cfg.raccourcis.corriger == "!" and cfg.affichage.taille_police == 11
+    assert cfg.raccourcis.corriger == "!" and cfg.affichage.taille_police == 4

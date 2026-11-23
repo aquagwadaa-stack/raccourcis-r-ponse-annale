@@ -79,11 +79,12 @@ class CorrecteurApp(QObject):
 
         if use_tray:
             keys = {"corriger": cfg.raccourcis.corriger, "masquer": cfg.raccourcis.masquer, "effacer": cfg.raccourcis.effacer}
-            self.tray = Tray(cfg.affichage.mode, keys, self)
+            self.tray = Tray(cfg.affichage.mode, keys, self, font_size=cfg.affichage.taille_police)
             self.tray.capture_requested.connect(self.request_capture)
             self.tray.toggle_requested.connect(self.toggle)
             self.tray.clear_requested.connect(self.clear)
             self.tray.mode_changed.connect(self.set_mode)
+            self.tray.size_changed.connect(self.set_font_size)
             self.tray.reindex_requested.connect(self.reindex)
             self.tray.pause_toggled.connect(self.set_hotkeys_paused)
             self.tray.open_folder_requested.connect(self.open_folder)
@@ -222,6 +223,15 @@ class CorrecteurApp(QObject):
         message = f"Affichage : {MODE_LABELS[mode].lower()}."
         self.panel.set_info(message)
         QTimer.singleShot(4000, lambda: self._clear_info(message))
+
+    def set_font_size(self, size: int) -> None:
+        """Taille du texte des réponses, appliquée tout de suite et enregistrée."""
+        self.cfg.affichage.taille_police = size
+        self.panel.set_font_size(size)
+        try:
+            save_setting(self.cfg.base_dir, "affichage", "taille_police", size)
+        except OSError:
+            log.warning("Taille du texte non enregistrée dans config.toml", exc_info=True)
 
     def open_folder(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.cfg.base_dir)))

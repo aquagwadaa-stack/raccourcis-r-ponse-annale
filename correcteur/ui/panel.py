@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QImage, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
@@ -108,16 +108,11 @@ class AnswerPanel(QWidget):
         self.setWindowTitle("Correcteur d'annales")
         self.setMouseTracking(True)
 
-        self._timer = QTimer(self)
-        self._timer.setInterval(1000)
-        self._timer.timeout.connect(self._refresh)
-
     # -- interface publique ------------------------------------------------
     def start_capture(self, capture_id: int) -> None:
-        """Une capture vient de partir : affiche « … » et les secondes écoulées."""
+        """Une capture vient de partir : affiche « … » jusqu'à la réponse."""
         self._pending[capture_id] = time.monotonic()
         self._message = None
-        self._timer.start()
         self._refresh()
 
     def set_stage(self, capture_id: int, stage: str) -> None:
@@ -180,6 +175,10 @@ class AnswerPanel(QWidget):
             self._moved_by_user = False
         self._refresh()
 
+    def set_font_size(self, size: int) -> None:
+        self.display.taille_police = size
+        self._refresh()
+
     def set_backdrop(self, thumbnail: QImage, screen_rect: QRect) -> None:
         """Miniature de la dernière capture, pour choisir la couleur du texte selon la page."""
         self._backdrop = (thumbnail, QRect(screen_rect))
@@ -221,28 +220,28 @@ class AnswerPanel(QWidget):
         else:
             lines += [self._row_segments(key, row) for key, row in rows]
         if self._pending:
-            seconds = int(time.monotonic() - min(self._pending.values()))
-            lines.append([(f"…  {seconds} s", "faint")])
+            lines.append([("…", "faint")])  # juste de quoi savoir que ça calcule
         if self._message is not None:
             lines.append([self._message])
         return lines
 
     # -- dessin ------------------------------------------------------------
     def _fonts(self) -> tuple[QFont, QFont]:
+        """Police des réponses (et de l'attente), police des messages d'erreur."""
         size = self.display.taille_police
         if self._font_cache is None or self._font_cache[0] != size:
             main = QFont()
             main.setFamilies(FONT_FAMILIES)
             main.setPointSize(size)
             main.setWeight(QFont.Weight.Light)
-            small = QFont(main)
-            small.setPointSize(max(7, round(size * 0.85)))
-            self._font_cache = (size, main, small)
+            error = QFont(main)
+            error.setPointSize(max(7, round(size * 0.85)))  # une erreur doit rester lisible
+            self._font_cache = (size, main, error)
         return self._font_cache[1], self._font_cache[2]
 
     def _font_for(self, role: str) -> QFont:
-        main, small = self._fonts()
-        return small if role in ("faint", "error") else main
+        main, error = self._fonts()
+        return error if role == "error" else main
 
     def _max_width(self) -> int:
         screen = self._screen or QGuiApplication.primaryScreen()
@@ -286,18 +285,16 @@ class AnswerPanel(QWidget):
             widths.append(width)
             heights.append(height)
         main_metrics = QFontMetrics(self._fonts()[0])
-        cross = max(7, round(main_metrics.height() * 0.38))
+        cross = max(4, round(main_metrics.height() * 0.34))  # proportionnelle au texte : toute petite
         return max(widths, default=0), heights, cross
 
     def _refresh(self) -> None:
-        if not self._pending:
-            self._timer.stop()
         self._lines = self._wrap(self._build())
         if not (self._wanted and self._lines):
             self.hide()
             return
         text_width, heights, cross = self._measure()
-        gap = max(6, cross)
+        gap = max(4, cross)
         width = PAD + text_width + gap + cross + PAD
         height = PAD + sum(heights) + PAD
         self.setFixedSize(width, height)
@@ -359,7 +356,8 @@ class AnswerPanel(QWidget):
         painter.drawText(origin, text)
 
     def _draw_cross(self, painter: QPainter, palette: dict[str, QColor]) -> None:
-        rect = QRectF(self._close_rect).adjusted(1, 1, -1, -1)
+        inset = 1 if self._close_rect.width() >= 6 else 0  # en très petit, la croix occupe toute sa place
+        rect = QRectF(self._close_rect).adjusted(inset, inset, -inset, -inset)
         color = palette["ans"] if self._hover_close else palette["num"]
         for pen_color, width in ((palette["halo"], 3.0), (color, 1.2)):
             pen = QPen(pen_color, width)

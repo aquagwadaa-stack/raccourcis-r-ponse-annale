@@ -60,6 +60,25 @@ jobs:
           if not errorlevel 1 exit /b 1
           echo   "loggedIn": true, | findstr /r /c:"loggedIn.: *true"
           if errorlevel 1 exit /b 1
+      - name: Mise à jour par mettre_a_jour.bat (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          CORRECTEUR_TEST_SANS_PAUSE: "1"
+        run: |
+          rem On abîme un fichier du programme et on personnalise les réglages et les cours :
+          rem la mise à jour doit réparer le premier et garder les autres.
+          del correcteur\session.py
+          echo Note personnelle > cours\perso.txt
+          .venv\Scripts\python.exe -c "from correcteur.config import save_setting; save_setting('.', 'affichage', 'disposition', 'ligne')"
+          call mettre_a_jour.bat < nul
+          if errorlevel 1 exit /b 1
+          if not exist correcteur\session.py exit /b 1
+          if not exist cours\perso.txt exit /b 1
+          findstr /c:"disposition = \"ligne\"" config.toml
+          if errorlevel 1 exit /b 1
+          .venv\Scripts\python.exe -m correcteur diagnostic
+          exit /b 0
       - name: Bureau Windows réel (transparence, raccourci)
         if: runner.os == 'Windows'
         run: python tests/windows_real_check.py

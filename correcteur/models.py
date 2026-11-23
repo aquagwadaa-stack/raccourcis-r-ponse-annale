@@ -75,8 +75,8 @@ class ReadQuestion(BaseModel):
     )
     complete: bool = Field(
         description=(
-            "true si toutes les propositions de la question sont visibles ; "
-            "false si la question continue sous le bord de l'écran."
+            "false si la question continue sous le bord bas de l'écran (propositions manquantes ou coupées) ; "
+            "true si sa fin est visible, même quand son début est au-dessus du bord haut."
         )
     )
     requetes: list[str] = Field(

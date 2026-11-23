@@ -50,7 +50,7 @@ echo   1. Double-clique sur connecter_claude.bat pour relier ton abonnement Clau
 echo      Avec une cle API a la place : colle-la dans un fichier cle_api.txt.
 echo   2. Mets tes cours dans le dossier "cours", puis lance indexer_cours.bat.
 echo   3. Lance diagnostic.bat pour tout verifier.
-echo   4. Lance lancer.bat, puis appuie sur F8 devant une annale.
+echo   4. Lance lancer.bat, puis appuie sur ! devant une annale.
 echo.
 pause
 exit /b 0

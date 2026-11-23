@@ -1,6 +1,6 @@
 # Correcteur d'annales
 
-Un raccourci clavier pour corriger tes annales de médecine sans quitter la page : tu appuies sur **F8**, l'écran est capturé, Claude lit les questions, cherche dans **tes cours**, et la réponse s'affiche par-dessus l'écran — les lettres seules (`4  ACD`) ou des coches vertes sur les bonnes propositions.
+Un raccourci clavier pour corriger tes annales de médecine sans quitter la page : tu appuies sur **!**, l'écran est capturé, Claude lit les questions, cherche dans **tes cours**, et la réponse s'affiche en tout petit dans le coin de l'écran (`4  ACD`), ou par des coches vertes sur les bonnes propositions.
 
 C'est un outil d'entraînement : il sert à vérifier tes réponses après avoir fait tes questions.
 
@@ -13,6 +13,8 @@ C'est un outil d'entraînement : il sert à vérifier tes réponses après avoir
 5. **Mets tes cours** dans le dossier `cours`, puis double-clique sur **`indexer_cours.bat`**.
 6. Double-clique sur **`diagnostic.bat`** : chaque ligne doit commencer par `[OK]`.
 7. Double-clique sur **`lancer.bat`**. Une icône verte apparaît près de l'horloge : le correcteur est prêt.
+
+**Mettre à jour plus tard** : double-clique sur **`mettre_a_jour.bat`**. Il télécharge la dernière version et garde tes cours, ton historique et tes réglages.
 
 ## Connexion à Claude : deux possibilités
 
@@ -50,36 +52,38 @@ S'il trouve une clé API, le correcteur l'utilise ; sinon il utilise Claude Code
 
 | Touche | Action |
 |---|---|
-| **F8** | capture l'écran où se trouve la souris et lance la correction |
+| **!** | capture l'écran où se trouve la souris et lance la correction |
 | **F9** | masque ou réaffiche les réponses |
-| **Maj + F8** | efface la liste (quand tu changes d'annale) |
+| **Maj + F8** | efface les réponses (quand tu changes d'annale) |
 
-Les touches se changent dans `config.toml`. Le menu de l'icône verte (clic droit) propose les mêmes actions, le choix de l'affichage et la mise à jour de l'index des cours.
+Tant que le correcteur tourne, la touche **!** ne sert qu'à lui : pour taper un « ! » ailleurs, clic droit sur l'icône verte, **Mettre les raccourcis en pause** (et pareil pour les réactiver). Les touches se changent dans `config.toml`.
 
-**Une capture = un écran.** Pendant que Claude travaille, relis tes questions sans faire défiler. Ensuite, fais défiler et rappuie sur F8. Tu peux lancer plusieurs captures à la suite : les réponses s'ajoutent dans le panneau, classées par numéro de question.
+Le menu de l'icône verte (clic droit) propose aussi le choix de l'affichage, la **taille du texte**, et la mise à jour de l'index des cours. Ces choix sont gardés pour la fois suivante.
 
-### Les trois affichages (`mode` dans `config.toml`)
+**Une capture = un écran.** Pendant que Claude travaille, un petit `…` s'affiche : relis tes questions sans faire défiler. Ensuite, fais défiler et rappuie sur **!**.
 
-- `"lettres"` : un petit panneau avec le numéro de la question et les lettres justes.
-- `"coches"` : une coche verte sur chaque bonne proposition, directement sur la page. Les clics traversent les coches.
+**Questions trop longues pour l'écran.** Capture ce que tu vois : Claude corrige les propositions visibles. Fais défiler et rappuie sur **!** : il reconnaît la suite de la question, la corrige avec l'énoncé vu sur l'écran d'avant, et complète la réponse (`5  AC` devient `5  ACE`). Une proposition coupée en deux par le bord de l'écran est corrigée à la capture suivante.
+
+### L'affichage (`mode` dans `config.toml`)
+
+- `"lettres"` (par défaut) : en bas à droite, le numéro de la question et les lettres à cocher, en petit, sans fond. Deux réponses au plus : les plus anciennes disparaissent (sauf si l'écran que tu viens de capturer en contient plus, pour ne jamais cacher une réponse toute fraîche). Le texte se met en foncé sur une page claire et en clair sur une page sombre. La petite croix à droite ferme l'affichage ; la capture suivante le rouvre. Tu peux le déplacer en le faisant glisser.
+- `"coches"` : une coche verte sur chaque proposition à cocher, directement sur la page, et une croix rouge sur une case que tu as cochée à tort. Les clics traversent les coches. Si tu as fait défiler la page entre-temps, elles tomberaient à côté : le correcteur le détecte et affiche les lettres à la place.
 - `"les_deux"`.
 
-Les coches sont placées d'après la capture. Si tu as fait défiler la page entre-temps, elles tomberaient à côté : le correcteur le détecte et affiche les lettres à la place.
+Réglages utiles dans `config.toml` : `taille_police` (4 par défaut ; aussi dans le menu de l'icône), `reponses_max` (2), `disposition = "ligne"` pour tout mettre sur une seule ligne, `position` pour changer de coin.
 
-### Lire le panneau
+### Lire l'affichage
 
 | Ce que tu vois | Ce que ça veut dire |
 |---|---|
-| `4  ACD` | les propositions A, C et D sont justes |
-| `4  aucune` | aucune proposition n'est juste |
-| lettres **vertes** | tes cases cochées sont identiques à la correction |
-| lettres **orange** + `toi : AC` | tes cases diffèrent ; `toi :` rappelle ce que tu avais coché |
-| `~` après les lettres | réponse donnée **sans appui dans tes cours** (connaissances générales) |
-| `?` après les lettres | Claude est peu sûr de lui |
-| `coupée` | la question dépasse de l'écran : fais défiler et rappuie sur F8 |
-| croix rouge sur la page | une case que tu as cochée et qui est fausse |
+| `4  ACD` | à la question 4, il faut cocher A, C et D |
+| `4  aucune` | aucune proposition n'est à cocher |
+| `4  ?` | Claude n'a pas pu corriger cette question : recapture l'écran |
+| `…` | la correction est en cours |
 
-La comparaison avec tes cases se désactive avec `comparer_mes_reponses = false`.
+**Les lettres affichées sont toujours celles à cocher.** Quand la consigne demande les propositions fausses (« cochez la ou les proposition(s) fausse(s) », « laquelle est inexacte ? »), ce sont donc les fausses qui s'affichent. Les questions à réponse unique (QCU, QRU, « une seule réponse », « la réponse exacte ») donnent une seule lettre.
+
+L'historique (`historique/AAAA-MM-JJ.txt`) donne plus de détails pour chaque question : source de la réponse (ton cours, une annale corrigée, ou les connaissances générales), confiance, consigne inversée, et les cases que tu avais cochées si elles diffèrent.
 
 ## Tes cours
 
@@ -91,7 +95,7 @@ Pourquoi c'est important : les enseignants notent d'après leur cours, qui ne di
 
 ## Délais et coût
 
-Mesuré pendant le développement, avec l'abonnement Claude (Claude Code), sur un écran de trois questions : **environ 20 secondes** (lecture de l'écran 10 à 14 s, correction 5 à 11 s). Ce sont des mesures sur quelques essais, pas une garantie : cela dépend de la charge du service et de la longueur des questions.
+Mesuré pendant le développement, avec l'abonnement Claude (Claude Code) : **12 à 20 secondes par écran** (lecture de l'écran 7 à 14 s, correction 5 à 11 s). Ce sont des mesures sur quelques essais, pas une garantie : cela dépend de la charge du service et de la longueur des questions.
 
 Avec une clé API, rien n'a pu être mesuré (aucune clé n'était disponible pendant le développement). D'après les tarifs publics, il faut compter de l'ordre de 0,15 à 0,25 € par capture avec les réglages par défaut, soit quelques euros pour une annale entière. Deux réglages de `config.toml` réduisent la facture : `modele_lecture = "claude-haiku-5-5"` et `effort_reponse = "medium"`.
 
@@ -106,12 +110,12 @@ Avec une clé API, rien n'a pu être mesuré (aucune clé n'était disponible pe
 - **Les réponses peuvent être fausses**, surtout sans cours sur le sujet. En cas de désaccord, ton cours a raison.
 - Les pages scannées (images sans texte) ne sont pas lisibles par l'index : l'indexation te dit lesquelles.
 - Les schémas et images des cours ne sont pas pris en compte, seulement le texte.
-- Une question n'est corrigée que si elle est entièrement visible à l'écran.
-- Testé automatiquement sur une machine Windows (installation, raccourci F8, transparence des coches), avec un écran à 100 %. Restent à confirmer sur ton PC : l'appel à Claude Code sous Windows et l'alignement des coches avec un affichage à 150 ou 200 %.
+- Une question à cheval sur deux écrans n'est complétée que si tu captures les deux écrans à la suite (dans les 20 minutes).
+- Testé automatiquement sur une machine Windows (installation, mise à jour, touche !, transparence, petite croix), avec un écran à 100 % et un clavier QWERTY ; la position de la touche ! sur un clavier AZERTY est vérifiée à part. Restent à confirmer sur ton PC : l'alignement des coches avec un affichage à 150 ou 200 %.
 
 ## En cas de problème
 
-- **Rien ne se passe sur F8** : lance `diagnostic.bat`. Si le raccourci est déjà pris par un autre programme, le panneau le signale au démarrage ; change-le dans `config.toml`.
+- **Rien ne se passe sur !** : vérifie que les raccourcis ne sont pas en pause (clic droit sur l'icône verte), puis lance `diagnostic.bat`. Si la touche est déjà prise par un autre programme, le correcteur le signale au démarrage ; change-la dans `config.toml`.
 - **« Claude Code n'est pas installé »** ou **« pas connecté »** : double-clique sur `connecter_claude.bat`, puis relance `lancer.bat`.
 - **« Limite d'utilisation atteinte »** : ton quota Claude est épuisé pour le moment ; réessaie après l'heure indiquée.
 - **Les coches sont décalées** : vérifie que tu n'as pas fait défiler la page ; sinon passe en `mode = "lettres"`.
@@ -124,7 +128,7 @@ Dans un terminal ouvert dans le dossier du correcteur :
 ```
 .venv\Scripts\python -m correcteur diagnostic
 .venv\Scripts\python -m correcteur chercher "protéine Gs adénylate cyclase"
-.venv\Scripts\python -m correcteur tester capture.png
+.venv\Scripts\python -m correcteur tester capture1.png capture2.png
 ```
 
-`tester` corrige une image enregistrée et affiche les réponses dans le terminal ; `chercher` montre les passages de cours retrouvés pour une requête.
+`tester` corrige des images enregistrées, comme des captures successives, et affiche les réponses dans le terminal ; `chercher` montre les passages de cours retrouvés pour une requête.

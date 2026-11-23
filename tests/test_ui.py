@@ -27,9 +27,9 @@ def test_attente_puis_resultat(qapp):
     panel = AnswerPanel(DisplayConfig())
     assert not panel.has_content() and not panel.isVisible()
     panel.start_capture(1)
-    assert panel.isVisible() and panel.lines() == ["…  0 s"]
+    assert panel.isVisible() and panel.lines() == ["…"]
     panel.set_stage(1, "recherche")  # l'étape n'est pas affichée : rester discret
-    assert panel.lines() == ["…  0 s"]
+    assert panel.lines() == ["…"]
     panel.set_result(1, result(q("5", "C"), q("4", "ACD")))
     assert panel.lines() == ["4  ACD", "5  C"]
 
@@ -74,7 +74,7 @@ def test_messages_bascule_et_effacement(qapp):
     panel.set_result(2, result())
     assert panel.lines() == [NO_QUESTION_TEXT]
     panel.start_capture(3)  # un nouvel essai efface le message précédent
-    assert panel.lines() == ["…  0 s"]
+    assert panel.lines() == ["…"]
     panel.set_result(3, result(q("1", "A")))
     panel.toggle()
     assert not panel.isVisible() and panel.lines() == ["1  A"]
@@ -198,6 +198,10 @@ def test_icone_et_menu(qapp):
     tray.set_paused(False)  # mise à jour par l'application : pas de nouveau signal
     assert seen == ["corriger", "quitter", "coches", ("pause", True)]
     assert not tray._pause.isChecked()
+    sizes = []
+    tray.size_changed.connect(sizes.append)
+    tray._size_actions[8].trigger()
+    assert sizes == [8] and tray._size_actions[8].isChecked() and set(tray._size_actions) == {4, 6, 8, 11, 14}
     tray.set_mode("les_deux")
     assert tray._mode_actions["les_deux"].isChecked() and set(MODE_LABELS) == set(tray._mode_actions)
     tray.notify("titre", "texte")  # sans icône visible : sans effet, sans erreur

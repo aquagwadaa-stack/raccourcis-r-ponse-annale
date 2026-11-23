@@ -11,7 +11,7 @@ effacer  = "shift+f8"   # vide la liste (quand tu changes d'annale)
 [affichage]
 mode = "lettres"        # "lettres" (ex. « 4  ACD »), "coches" (✓ sur les bonnes réponses) ou "les_deux"
 position = "bas_droite" # "bas_droite", "bas_gauche", "haut_droite", "haut_gauche"
-taille_police = 11
+taille_police = 4       # se change aussi par l'icône verte : clic droit, Taille du texte
 opacite = 0.9
 reponses_max = 2        # nombre de réponses affichées : les plus anciennes disparaissent
 disposition = "colonne" # "colonne" : une question par ligne ; "ligne" : toutes sur une seule ligne

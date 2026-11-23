@@ -6,6 +6,8 @@ from PySide6.QtCore import QObject, QPointF, Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
+FONT_SIZES = (4, 6, 8, 11, 14)
+
 MODE_LABELS = {
     "lettres": "Lettres seules",
     "coches": "Coches sur la page",
@@ -41,12 +43,19 @@ class Tray(QObject):
     toggle_requested = Signal()
     clear_requested = Signal()
     mode_changed = Signal(str)
+    size_changed = Signal(int)
     reindex_requested = Signal()
     pause_toggled = Signal(bool)
     open_folder_requested = Signal()
     quit_requested = Signal()
 
-    def __init__(self, mode: str, hotkeys: dict[str, str] | None = None, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        mode: str,
+        hotkeys: dict[str, str] | None = None,
+        parent: QObject | None = None,
+        font_size: int = 4,
+    ) -> None:
         super().__init__(parent)
         keys = hotkeys or {}
 
@@ -70,6 +79,16 @@ class Tray(QObject):
             action.triggered.connect(lambda _checked=False, k=key: self.mode_changed.emit(k))
             group.addAction(action)
             self._mode_actions[key] = action
+        size_menu = self.menu.addMenu("Taille du texte")
+        self._size_actions: dict[int, QAction] = {}
+        sizes = QActionGroup(self)
+        for size in sorted({*FONT_SIZES, font_size}):
+            action = size_menu.addAction(f"{size}" + ("  (la plus discrète)" if size == min(FONT_SIZES) else ""))
+            action.setCheckable(True)
+            action.setChecked(size == font_size)
+            action.triggered.connect(lambda _checked=False, s=size: self.size_changed.emit(s))
+            sizes.addAction(action)
+            self._size_actions[size] = action
         self._pause = self.menu.addAction("Mettre les raccourcis en pause")
         self._pause.setCheckable(True)
         self._pause.toggled.connect(self.pause_toggled.emit)
