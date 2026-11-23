@@ -113,6 +113,29 @@ Avec une clé API, rien n'a pu être mesuré (aucune clé n'était disponible pe
 - Une question à cheval sur deux écrans n'est complétée que si tu captures les deux écrans à la suite (dans les 20 minutes).
 - Testé automatiquement sur une machine Windows (installation, mise à jour, touche !, transparence, petite croix), avec un écran à 100 % et un clavier QWERTY ; la position de la touche ! sur un clavier AZERTY est vérifiée à part. Restent à confirmer sur ton PC : l'alignement des coches avec un affichage à 150 ou 200 %.
 
+## Tablette Android
+
+Une appli à part fait la même chose sur une tablette Android (11 ou plus, testée pour la Galaxy Tab S10 FE+) : un **petit point flottant** à toucher, et les lettres à cocher en tout petit dans un coin, dans le même style que sur le PC. Elle appelle Claude directement avec **ta clé API Anthropic** : elle marche partout, sans le PC, mais chaque capture est facturée sur ton compte API, et elle n'utilise pas tes cours.
+
+### Installation (une seule fois)
+
+1. **Crée une clé API** sur <https://console.anthropic.com> depuis la tablette : connecte-toi, ajoute un peu de crédit (Billing), puis « API Keys », « Create Key », et copie la clé (elle commence par `sk-ant-`).
+2. **Télécharge l'appli** sur la tablette avec ce lien : <https://github.com/aquagwadaa-stack/raccourcis-r-ponse-annale/releases/download/tablette/correcteur-tablette.apk>. Si le navigateur prévient que le fichier peut être dangereux, choisis « Télécharger quand même ».
+3. **Installe-la** en ouvrant le fichier téléchargé. La tablette demande d'autoriser le navigateur à installer des applis : accepte. Si Play Protect affiche un avertissement, touche « Plus de détails » puis « Installer quand même ». Si l'installation est bloquée par le **Bloqueur automatique** de Samsung : Paramètres, Sécurité et confidentialité, Bloqueur automatique, désactive-le le temps de l'installation.
+4. **Ouvre l'appli « Correcteur »**, colle ta clé, touche « Enregistrer et tester » : elle doit répondre « Clé valide ».
+5. **Active le correcteur** : touche « Réglages d'accessibilité », puis « Applications installées », « Correcteur d'annales », et active-le. Si Android affiche **« Paramètre restreint »** : reviens dans l'appli, touche « Infos de l'appli », puis ⋮ en haut à droite, « Autoriser les paramètres restreints », et recommence.
+6. Le petit point apparaît à l'écran. Ouvre ton annale et touche-le.
+
+### Utilisation
+
+- Touche le point pour corriger l'écran ; fais-le glisser pour le déplacer. Il devient gris pendant le calcul, et `…` s'affiche.
+- Mêmes règles que sur le PC : `4  ACD` (lettres toujours à cocher, même pour « cochez les fausses »), deux réponses au plus, une petite croix pour fermer, et les questions trop longues se complètent d'une capture à la suivante.
+- Dans l'appli : taille du texte (4 par défaut), coin de l'écran, et modèle de Claude.
+
+**Coût (estimation d'après les tarifs publics, pas une mesure)** : avec Opus 5.5, de l'ordre de 0,05 € par capture, soit environ 1 à 2 € pour une annale entière ; avec Sonnet 5.5, environ deux fois moins ; avec Haiku 5.5, presque rien, mais il se trompe plus souvent.
+
+**Confidentialité** : la capture de l'écran est envoyée à Anthropic avec ta clé. L'appli ne lit rien d'autre à l'écran et ne garde ni historique ni capture ; la clé reste dans le stockage privé de l'appli, exclu des sauvegardes.
+
 ## En cas de problème
 
 - **Rien ne se passe sur !** : vérifie que les raccourcis ne sont pas en pause (clic droit sur l'icône verte), puis lance `diagnostic.bat`. Si la touche est déjà prise par un autre programme, le correcteur le signale au démarrage ; change-la dans `config.toml`.
