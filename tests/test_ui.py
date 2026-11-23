@@ -126,8 +126,9 @@ def test_lisible_sur_tous_les_fonds(qapp):
     # Blanc plein entouré de noir plein : le contraste ne dépend pas de la page dessous.
     assert all(color.alpha() == 255 for color in PALETTE.values())
     assert PALETTE["ans"] == QColor("white") and PALETTE["halo"] == QColor("black")
-    panel = AnswerPanel(DisplayConfig())
-    assert panel.windowOpacity() == 1.0
+    assert AnswerPanel(DisplayConfig()).windowOpacity() == 1.0
+    # Assez grand pour que le cœur blanc des lettres couvre des pixels entiers, quelle que soit la police.
+    panel = AnswerPanel(DisplayConfig(taille_police=14))
     panel.set_result(1, result(q("4", "ACD")))
     image = panel.grab().toImage()
     pixels = [image.pixelColor(x, y) for x in range(image.width()) for y in range(image.height())]
