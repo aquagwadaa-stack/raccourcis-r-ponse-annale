@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Protocol, Sequence
 
 from .ai.base import Backend, BackendError
 from .models import (
+    PREVIOUS_SCREEN,
     AnsweredQuestion,
     Answers,
     Excerpt,
@@ -21,6 +21,8 @@ from .models import (
     ReadQuestion,
     ScreenImage,
     ScreenResult,
+    is_answerable,
+    letters_to_tick,
     normalize_letter,
     normalize_number,
 )
@@ -114,9 +116,9 @@ def retrieve(
     per_question: int,
     max_chars: int = MAX_EXCERPT_CHARS,
 ) -> list[Excerpt]:
-    """Passages de cours pour toutes les questions complètes d'une capture, sans doublon."""
+    """Passages de cours pour toutes les questions à corriger d'une capture, sans doublon."""
     per_q = [
-        retrieve_for_question(q, searcher, per_question) for q in reading.questions if q.complete
+        retrieve_for_question(q, searcher, per_question) for q in reading.questions if is_answerable(q)
     ]
     selected: list[Excerpt] = []
     seen: set[tuple] = set()
@@ -143,80 +145,112 @@ def _valid_position(x: int, y: int, image: ScreenImage) -> bool:
     return 0 <= x < image.width and 0 <= y < image.height
 
 
+def continue_previous(reading: Reading, previous: Reading | None) -> Reading:
+    """Raccroche le haut de la capture à la question laissée inachevée sur la capture précédente.
+
+    Quand l'énoncé est trop long pour tenir à l'écran, l'étudiant capture une
+    question en plusieurs fois : le haut de la nouvelle capture montre alors des
+    propositions sans numéro ni énoncé. On leur rend le numéro, l'énoncé et les
+    premières propositions de la capture précédente, pour que la correction ait
+    tout le contexte (les propositions reprises sont marquées ``PREVIOUS_SCREEN``).
+    """
+    if not reading.questions or reading.questions[0].debut_visible:
+        return reading
+    first = reading.questions[0]
+    earlier = previous.questions[-1] if previous is not None and previous.questions else None
+    if earlier is None:
+        return reading
+    visible = {normalize_letter(p.lettre) for p in first.propositions}
+    carried = [
+        p.model_copy(update={"x": PREVIOUS_SCREEN, "y": PREVIOUS_SCREEN, "cochee": False})
+        for p in earlier.propositions
+        if normalize_letter(p.lettre) not in visible
+    ]
+    stem = earlier.enonce.strip()
+    tail_of_stem = first.enonce.strip()
+    if tail_of_stem and tail_of_stem not in stem:
+        stem = f"{stem} […] {tail_of_stem}" if stem else tail_of_stem
+    joined = first.model_copy(
+        update={
+            "numero": first.numero or earlier.numero,
+            "type": earlier.type if first.type == "autre" else first.type,
+            "enonce": stem,
+            "propositions": carried + list(first.propositions),
+            "requetes": list(dict.fromkeys([*earlier.requetes, *first.requetes])),
+        }
+    )
+    return Reading(questions=[joined, *reading.questions[1:]])
+
+
+def _result_from_answer(a: AnsweredQuestion, known_letters: list[str] | None = None) -> QuestionResult:
+    verdicts = {normalize_letter(v.lettre): v.vraie for v in a.verdicts}
+    if known_letters:
+        verdicts = {letter: true for letter, true in verdicts.items() if letter in known_letters}
+    fausses = a.cocher == "fausses"
+    return QuestionResult(
+        numero=normalize_number(a.numero) or a.numero.strip() or "?",
+        lettres=letters_to_tick(verdicts, fausses),
+        reponse_libre=a.reponse_libre.strip(),
+        cochees=None,
+        source=a.source,
+        confiance=a.confiance,
+        note=a.note.strip(),
+        verdicts=verdicts,
+        cocher_fausses=fausses,
+    )
+
+
 def merge(reading: Reading | None, answers: Answers | None, image: ScreenImage) -> ScreenResult:
-    """Réunit lecture et correction en un résultat affichable."""
+    """Réunit lecture et correction en un résultat affichable.
+
+    Seules les questions dont au moins une proposition est visible apparaissent :
+    un énoncé seul, coupé en bas de l'écran, sera corrigé sur la capture suivante.
+    """
     answered = list(answers.questions) if answers else []
+
+    if reading is None:
+        return ScreenResult(
+            questions=[_result_from_answer(a) for a in answered],
+            image_width=image.width,
+            image_height=image.height,
+        )
+
+    targets = [q for q in reading.questions if is_answerable(q)]
     by_number = {normalize_number(a.numero): a for a in answered}
-    results: list[QuestionResult] = []
-    any_ticked = False
-
-    if reading is None or not reading.questions:
-        for a in answered:
-            letters = sorted({normalize_letter(v.lettre) for v in a.verdicts if v.correcte})
-            results.append(
-                QuestionResult(
-                    numero=normalize_number(a.numero) or a.numero,
-                    lettres="".join(letters),
-                    reponse_libre=a.reponse_libre.strip(),
-                    cochees=None,
-                    source=a.source,
-                    confiance=a.confiance,
-                    note=a.note.strip(),
-                )
-            )
-        return ScreenResult(questions=results, image_width=image.width, image_height=image.height)
-
-    complete_questions = [q for q in reading.questions if q.complete]
     # Si les numéros ne se correspondent pas mais que le compte est bon, on apparie dans l'ordre.
     by_order: dict[int, AnsweredQuestion] = {}
-    numbers_match = all(normalize_number(q.numero) in by_number for q in complete_questions)
-    if not numbers_match and len(answered) == len(complete_questions):
-        by_order = {id(q): a for q, a in zip(complete_questions, answered)}
+    if not all(normalize_number(q.numero) in by_number for q in targets) and len(answered) == len(targets):
+        by_order = {id(q): a for q, a in zip(targets, answered)}
 
+    results: list[QuestionResult] = []
     used: set[int] = set()
-    for q in reading.questions:
-        number = normalize_number(q.numero) or q.numero
+    any_ticked = False
+    for q in targets:
+        visible = [p for p in q.propositions if not p.from_previous_screen]
         known_letters = [normalize_letter(p.lettre) for p in q.propositions]
-        ticked = "".join(sorted(normalize_letter(p.lettre) for p in q.propositions if p.cochee))
+        ticked = "".join(sorted(normalize_letter(p.lettre) for p in visible if p.cochee))
         any_ticked = any_ticked or bool(ticked)
         positions = {
-            normalize_letter(p.lettre): (p.x, p.y)
-            for p in q.propositions
-            if _valid_position(p.x, p.y, image)
+            normalize_letter(p.lettre): (p.x, p.y) for p in visible if _valid_position(p.x, p.y, image)
         }
-        result = QuestionResult(
-            numero=number, cochees=ticked, complete=q.complete, positions=positions, repondue=False
-        )
         a = by_order.get(id(q)) if by_order else by_number.get(normalize_number(q.numero))
-        if q.complete and a is not None:
+        if a is None:
+            result = QuestionResult(numero=normalize_number(q.numero) or "?", repondue=False)
+        else:
             used.add(id(a))
-            letters = {normalize_letter(v.lettre) for v in a.verdicts if v.correcte}
-            if known_letters:
-                letters &= set(known_letters)
-            result.lettres = "".join(sorted(letters))
-            result.reponse_libre = a.reponse_libre.strip()
-            result.source = a.source
-            result.confiance = a.confiance
-            result.note = a.note.strip()
-            result.repondue = True
+            result = _result_from_answer(a, known_letters)
+            result.numero = normalize_number(q.numero) or result.numero
+        result.cochees = ticked
+        result.complete = q.complete
+        result.positions = positions
+        result.suite = not q.debut_visible
         results.append(result)
 
     # Questions corrigées mais absentes de la lecture : on les garde, sans position.
+    read_numbers = {normalize_number(q.numero) for q in reading.questions}
     for a in answered:
-        if id(a) in used or normalize_number(a.numero) in {normalize_number(q.numero) for q in reading.questions}:
-            continue
-        letters = sorted({normalize_letter(v.lettre) for v in a.verdicts if v.correcte})
-        results.append(
-            QuestionResult(
-                numero=normalize_number(a.numero) or a.numero,
-                lettres="".join(letters),
-                reponse_libre=a.reponse_libre.strip(),
-                cochees=None,
-                source=a.source,
-                confiance=a.confiance,
-                note=a.note.strip(),
-            )
-        )
+        if id(a) not in used and normalize_number(a.numero) not in read_numbers:
+            results.append(_result_from_answer(a))
     return ScreenResult(
         questions=results,
         image_width=image.width,
@@ -232,8 +266,15 @@ def correct_screen(
     *,
     per_question: int = 8,
     on_progress: ProgressFn | None = None,
+    previous: Callable[[], Reading | None] | None = None,
+    on_reading: Callable[[Reading], None] | None = None,
 ) -> ScreenResult:
-    """Corrige une capture d'écran. Lève ``BackendError`` si la correction est impossible."""
+    """Corrige une capture d'écran. Lève ``BackendError`` si la correction est impossible.
+
+    ``previous`` donne la lecture de la capture précédente (pour une question à
+    cheval sur deux écrans) ; ``on_reading`` reçoit la lecture de celle-ci, une
+    fois raccrochée à la précédente.
+    """
 
     def progress(stage: str) -> None:
         if on_progress is not None:
@@ -244,59 +285,61 @@ def correct_screen(
 
     durations: dict[str, float] = {}
     start = time.monotonic()
-    has_courses = False
-    if searcher is not None and per_question > 0:
-        try:
-            has_courses = not searcher.is_empty()
-        except Exception:
-            log.exception("Index de cours illisible : correction sans les cours")
 
+    progress(STAGE_READ)
     reading: Reading | None = None
-    answers: Answers | None = None
+    try:
+        reading, durations[STAGE_READ] = _timed(backend.read, image)
+    except BackendError as exc:
+        # Sans lecture, le modèle de correction lit directement la capture.
+        log.warning("Lecture indisponible (%s) : correction directe", exc)
 
-    if not has_courses:
-        # Sans cours, lecture et correction sont indépendantes : on les lance ensemble.
-        progress(STAGE_ANSWER)
-        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="correcteur") as pool:
-            read_future = pool.submit(_timed, backend.read, image)
-            answer_future = pool.submit(_timed, backend.answer, image, None, [])
-            answers, durations[STAGE_ANSWER] = answer_future.result()
-            try:
-                reading, durations[STAGE_READ] = read_future.result()
-            except BackendError as exc:
-                # La lecture ne sert ici qu'à placer les coches : on s'en passe.
-                log.warning("Lecture indisponible (%s) : réponses affichées sans positions", exc)
-    else:
-        progress(STAGE_READ)
+    excerpts: Sequence[Excerpt] = []
+    to_answer: Reading | None = None
+    if reading is not None:
         try:
-            reading, durations[STAGE_READ] = _timed(backend.read, image)
-        except BackendError as exc:
-            log.warning("Lecture indisponible (%s) : correction directe sans les cours", exc)
-        excerpts: Sequence[Excerpt] = []
-        if reading is not None:
-            if not reading.questions:
-                durations["total"] = time.monotonic() - start
-                return ScreenResult(
-                    questions=[],
-                    image_width=image.width,
-                    image_height=image.height,
-                    backend=backend.name,
-                    durations=durations,
-                )
-            if any(q.complete for q in reading.questions):
-                progress(STAGE_SEARCH)
-                assert searcher is not None
-                excerpts, durations[STAGE_SEARCH] = _timed(retrieve, reading, searcher, per_question)
-                log.info("%d extrait(s) de cours retenu(s)", len(excerpts))
-        if reading is None or any(q.complete for q in reading.questions):
-            progress(STAGE_ANSWER)
-            answers, durations[STAGE_ANSWER] = _timed(backend.answer, image, reading, excerpts)
+            earlier = previous() if previous is not None else None
+        except Exception:
+            log.exception("Lecture précédente indisponible")
+            earlier = None
+        reading = continue_previous(reading, earlier)
+        if on_reading is not None:
+            try:
+                on_reading(reading)
+            except Exception:
+                log.exception("Erreur en transmettant la lecture")
+        targets = [q for q in reading.questions if is_answerable(q)]
+        if not targets:
+            durations["total"] = time.monotonic() - start
+            return ScreenResult(
+                questions=[],
+                image_width=image.width,
+                image_height=image.height,
+                backend=backend.name,
+                durations=durations,
+            )
+        to_answer = reading if len(targets) == len(reading.questions) else Reading(questions=targets)
+        if searcher is not None and per_question > 0 and _has_courses(searcher):
+            progress(STAGE_SEARCH)
+            excerpts, durations[STAGE_SEARCH] = _timed(retrieve, to_answer, searcher, per_question)
+            log.info("%d extrait(s) de cours retenu(s)", len(excerpts))
+
+    progress(STAGE_ANSWER)
+    answers, durations[STAGE_ANSWER] = _timed(backend.answer, image, to_answer, excerpts)
 
     result = merge(reading, answers, image)
     result.backend = backend.name
     durations["total"] = time.monotonic() - start
     result.durations = durations
     return result
+
+
+def _has_courses(searcher: Searcher) -> bool:
+    try:
+        return not searcher.is_empty()
+    except Exception:
+        log.exception("Index de cours illisible : correction sans les cours")
+        return False
 
 
 def _timed(fn, *args):

@@ -67,6 +67,7 @@ READING = Reading(
     questions=[
         ReadQuestion(
             numero="1",
+            debut_visible=True,
             type="QRM",
             enonce="Concernant les récepteurs couplés aux protéines G :",
             propositions=[
@@ -82,7 +83,8 @@ ANSWERS = Answers(
     questions=[
         AnsweredQuestion(
             numero="1",
-            verdicts=[Verdict(lettre=letter, correcte=letter in "ACD") for letter in "ABCDE"],
+            cocher="vraies",
+            verdicts=[Verdict(lettre=letter, vraie=letter in "ACD") for letter in "ABCDE"],
             reponse_libre="",
             source="cours",
             confiance="haute",
@@ -1268,7 +1270,7 @@ class FakeSearcher:
         return False
 
 
-def test_pipeline_without_courses_runs_both_calls_in_parallel():
+def test_pipeline_without_courses_reads_then_answers():
     fake = FakeApi(by_system(read=ok(READING.model_dump_json()), answer=ok(ANSWERS.model_dump_json())))
     backend = ApiBackend(AIConfig(), client=make_client(fake))
 
@@ -1278,7 +1280,7 @@ def test_pipeline_without_courses_runs_both_calls_in_parallel():
     assert result.resume() == "1: ACD"
     assert result.questions[0].cochees == "B"
     assert result.questions[0].positions["A"] == (120, 200)
-    assert sorted(b["system"] for b in fake.bodies) == sorted([READ_SYSTEM, ANSWER_SYSTEM])
+    assert [b["system"] for b in fake.bodies] == [READ_SYSTEM, ANSWER_SYSTEM]
     for body in fake.bodies:
         assert_clean(body)
 

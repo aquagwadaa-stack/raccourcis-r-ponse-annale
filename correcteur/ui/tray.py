@@ -42,6 +42,7 @@ class Tray(QObject):
     clear_requested = Signal()
     mode_changed = Signal(str)
     reindex_requested = Signal()
+    pause_toggled = Signal(bool)
     open_folder_requested = Signal()
     quit_requested = Signal()
 
@@ -69,6 +70,9 @@ class Tray(QObject):
             action.triggered.connect(lambda _checked=False, k=key: self.mode_changed.emit(k))
             group.addAction(action)
             self._mode_actions[key] = action
+        self._pause = self.menu.addAction("Mettre les raccourcis en pause")
+        self._pause.setCheckable(True)
+        self._pause.toggled.connect(self.pause_toggled.emit)
         self.menu.addSeparator()
         self._add("Mettre à jour l'index des cours", self.reindex_requested)
         self._add("Ouvrir le dossier du correcteur", self.open_folder_requested)
@@ -87,6 +91,12 @@ class Tray(QObject):
             return False
         self.icon.show()
         return True
+
+    def set_paused(self, paused: bool) -> None:
+        if self._pause.isChecked() != paused:
+            self._pause.blockSignals(True)
+            self._pause.setChecked(paused)
+            self._pause.blockSignals(False)
 
     def set_mode(self, mode: str) -> None:
         if mode in self._mode_actions:

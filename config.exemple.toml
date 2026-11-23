@@ -1,20 +1,22 @@
 # Réglages du correcteur d'annales.
-# Copie ce fichier sous le nom "config.toml" puis modifie ce que tu veux.
 # Tout est facultatif : une ligne supprimée reprend sa valeur par défaut.
+version = 2
 
 [raccourcis]
-corriger = "f8"         # capture l'écran et lance la correction
+corriger = "!"          # capture l'écran et lance la correction
 masquer  = "f9"         # affiche / masque les réponses
 effacer  = "shift+f8"   # vide la liste (quand tu changes d'annale)
-# Exemples valides : "f8", "ctrl+alt+c", "ctrl+shift+espace", "pause"
+# Exemples valides : "!", "f8", "ctrl+alt+c", "ctrl+shift+espace", "pause"
 
 [affichage]
-mode = "lettres"        # "lettres" (ex. « 1 : ACD »), "coches" (✓ sur les bonnes réponses) ou "les_deux"
+mode = "lettres"        # "lettres" (ex. « 4  ACD »), "coches" (✓ sur les bonnes réponses) ou "les_deux"
 position = "bas_droite" # "bas_droite", "bas_gauche", "haut_droite", "haut_gauche"
-taille_police = 20
-opacite = 0.92
+taille_police = 11
+opacite = 0.9
+reponses_max = 2        # nombre de réponses affichées : les plus anciennes disparaissent
+disposition = "colonne" # "colonne" : une question par ligne ; "ligne" : toutes sur une seule ligne
 duree_coches_s = 30     # les coches s'effacent après ce délai (0 = elles restent)
-comparer_mes_reponses = true  # signale quand tes cases cochées diffèrent de la correction
+comparer_mes_reponses = true  # coches : croix rouge sur une case que tu as cochée à tort
 
 [ia]
 backend = "auto"        # "auto", "api" (clé API Anthropic) ou "claude_cli" (abonnement Claude)

@@ -15,9 +15,13 @@ log = logging.getLogger(__name__)
 def format_question(question, compare: bool = False) -> str:
     """Une ligne par question, ex. ``1 : ACD   (cours, confiance haute)``."""
     if not question.repondue:
-        reason = "coupée par le bord de l'écran" if not question.complete else "non corrigée"
-        return f"{question.numero:>3} : —   ({reason})"
-    line = f"{question.numero:>3} : {question.texte_court():<8} ({question.source}, confiance {question.confiance})"
+        return f"{question.numero:>3} : ?   (non corrigée)"
+    details = [question.source, f"confiance {question.confiance}"]
+    if question.cocher_fausses:
+        details.append("consigne : cocher les fausses")
+    if not question.complete:
+        details.append("suite sur l'écran suivant")
+    line = f"{question.numero:>3} : {question.texte_court():<8} ({', '.join(details)})"
     if compare and question.cochees is not None and question.cochees != question.lettres:
         line += f"   [tu avais coché : {question.cochees or 'rien'}]"
     return line

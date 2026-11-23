@@ -24,6 +24,7 @@ READING = {
     "questions": [
         {
             "numero": "1",
+            "debut_visible": True,
             "type": "QRM",
             "enonce": "Énoncé",
             "propositions": [{"lettre": "A", "texte": "a", "cochee": False, "x": 10, "y": 20}],
@@ -36,7 +37,8 @@ ANSWERS = {
     "questions": [
         {
             "numero": "1",
-            "verdicts": [{"lettre": "A", "correcte": True}],
+            "cocher": "vraies",
+            "verdicts": [{"lettre": "A", "vraie": True}],
             "reponse_libre": "",
             "source": "cours",
             "confiance": "haute",
@@ -132,7 +134,7 @@ def test_correction_avec_extraits_et_sans_modele(fake):
     backend, record = fake(ok(ANSWERS), justifications=True)
     reading = Reading.model_validate(READING)
     answers = backend.answer(IMAGE, reading, [Excerpt("cardio.pdf", 4, "Le cours dit que...", 1.0, 3)])
-    assert answers.questions[0].verdicts[0].correcte is True
+    assert answers.questions[0].verdicts[0].vraie is True
     sent = record()
     assert "--model" not in sent["args"]
     text = json.loads(sent["stdin"])["message"]["content"][1]["text"]
@@ -223,5 +225,5 @@ def test_reel_lecture_et_correction():
     print("\n" + backend.check())
     reading = backend.read(image)
     answers = backend.answer(image, reading, [])
-    print({q.numero: "".join(v.lettre for v in q.verdicts if v.correcte) for q in answers.questions})
+    print({q.numero: "".join(v.lettre for v in q.verdicts if v.vraie) for q in answers.questions})
     assert reading.questions and answers.questions

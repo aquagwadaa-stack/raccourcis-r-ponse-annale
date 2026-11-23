@@ -51,7 +51,9 @@ def test_tester_avec_moteur_factice(tmp_path, capsys, monkeypatch):
     code, out = run(capsys, "--dossier", str(tmp_path), "tester", str(path), "--sans-cours")
     assert code == 0
     assert "7 : AC" in out and "connaissances, confiance haute" in out and "tu avais coché : AB" in out
-    assert "coupée par le bord" in out and "Durées :" in out
+    assert " 8 :" not in out and "Durées :" in out  # l'énoncé seul de la question 8 attend la capture suivante
+    code, out = run(capsys, "--dossier", str(tmp_path), "tester", str(path), str(path), "--sans-cours")
+    assert code == 0 and out.count("7 : AC") == 2 and "--- capture.png" in out
 
     monkeypatch.setattr(select, "make_backend", lambda cfg: (_ for _ in ()).throw(BackendError("Pas de connexion")))
     code, out = run(capsys, "--dossier", str(tmp_path), "tester", str(path))

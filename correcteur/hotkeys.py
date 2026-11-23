@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import sys
 import threading
+import unicodedata
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Signal
@@ -74,11 +75,20 @@ def parse_hotkey(text: str) -> Hotkey:
     key = _KEY_ALIASES.get(parts[-1], parts[-1])
     is_function = key.startswith("f") and key[1:].isdigit() and 1 <= int(key[1:]) <= 24
     is_char = len(key) == 1 and key.isascii() and key.isalnum()
-    if not (is_function or is_char or key in _VK_NAMED):
-        raise HotkeyError(f"Raccourci « {text} » : touche « {parts[-1]} » inconnue. Exemples : f8, ctrl+alt+c.")
-    if is_char and not modifiers:
+    if not (is_function or is_char or is_symbol(key) or key in _VK_NAMED):
+        raise HotkeyError(f"Raccourci « {text} » : touche « {parts[-1]} » inconnue. Exemples : !, f8, ctrl+alt+c.")
+    if not modifiers and (is_char or (len(key) == 1 and unicodedata.category(key).startswith("L"))):
         raise HotkeyError(f"Raccourci « {text} » : une lettre ou un chiffre seul gênerait la frappe, ajoute ctrl ou alt.")
     return Hotkey(frozenset(modifiers), key)
+
+
+def is_symbol(key: str) -> bool:
+    """Signe tapé par une touche du clavier (« ! », « $ », « ² »...), hors lettres et chiffres."""
+    if len(key) != 1 or key.isspace() or not key.isprintable():
+        return False
+    if key.isascii() and key.isalnum():
+        return False
+    return not unicodedata.category(key).startswith("L")
 
 
 def virtual_key(hotkey: Hotkey) -> int:
@@ -96,6 +106,40 @@ def modifier_flags(hotkey: Hotkey) -> int:
     for modifier in hotkey.modifiers:
         flags |= _MOD_FLAGS[modifier]
     return flags
+
+
+def windows_binding(hotkey: Hotkey, layout: int | None = None) -> tuple[int, int]:
+    """``(modificateurs, code de touche)`` à déclarer à ``RegisterHotKey``.
+
+    Un signe comme « ! » n'est pas sur la même touche selon le clavier : seul sur
+    un AZERTY, avec Maj sur un QWERTY. On demande donc à Windows où il se trouve
+    sur la disposition de clavier en service (ou sur ``layout``).
+    """
+    flags = modifier_flags(hotkey)
+    if not is_symbol(hotkey.key):
+        return flags, virtual_key(hotkey)
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32")  # copie privée : les signatures posées ici ne fuient pas ailleurs
+    user32.VkKeyScanExW.argtypes = [wintypes.WCHAR, wintypes.HKL]
+    user32.VkKeyScanExW.restype = ctypes.c_short
+    if layout is None:
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.c_void_p]
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        user32.GetKeyboardLayout.argtypes = [wintypes.DWORD]
+        user32.GetKeyboardLayout.restype = wintypes.HKL
+        window = user32.GetForegroundWindow()
+        layout = user32.GetKeyboardLayout(user32.GetWindowThreadProcessId(window, None) if window else 0)
+    scan = user32.VkKeyScanExW(hotkey.key, layout)
+    if scan == -1 or scan & 0xFF == 0xFF:
+        raise HotkeyError(f"La touche « {hotkey.key} » n'existe pas sur ce clavier : choisis-en une autre.")
+    state = (scan >> 8) & 0xFF  # touches à tenir pour obtenir le signe
+    for bit, modifier in ((1, "shift"), (2, "ctrl"), (4, "alt")):
+        if state & bit:
+            flags |= _MOD_FLAGS[modifier]
+    return flags, scan & 0xFF
 
 
 def _pynput_spec(hotkey: Hotkey) -> str:
@@ -173,7 +217,12 @@ class HotkeyManager(QObject):
             self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
             names: dict[int, str] = {}
             for ident, (name, hotkey) in enumerate(hotkeys.items(), start=1):
-                if user32.RegisterHotKey(None, ident, modifier_flags(hotkey) | MOD_NOREPEAT, virtual_key(hotkey)):
+                try:
+                    flags, vk = windows_binding(hotkey)
+                except HotkeyError as exc:
+                    errors[name] = str(exc)
+                    continue
+                if user32.RegisterHotKey(None, ident, flags | MOD_NOREPEAT, vk):
                     names[ident] = name
                 else:
                     errors[name] = (

@@ -11,20 +11,17 @@ import time
 from pathlib import Path
 
 from . import __version__
-from .config import CONFIG_FILENAME, Config, ConfigError, default_base_dir, load_config
+from .config import (
+    CONFIG_FILENAME,
+    Config,
+    ConfigError,
+    default_base_dir,
+    example_config_path,
+    load_config,
+    migrate_config,
+)
 
 log = logging.getLogger("correcteur")
-EXAMPLE_CONFIG = "config.exemple.toml"
-
-
-def _example_config_path() -> Path | None:
-    """Fichier d'exemple livré avec le programme."""
-    roots = [Path(__file__).resolve().parent.parent, default_base_dir()]
-    for root in roots:
-        candidate = root / EXAMPLE_CONFIG
-        if candidate.is_file():
-            return candidate
-    return None
 
 
 def prepare(base_dir: Path) -> list[str]:
@@ -33,10 +30,14 @@ def prepare(base_dir: Path) -> list[str]:
     base_dir.mkdir(parents=True, exist_ok=True)
     config_path = base_dir / CONFIG_FILENAME
     if not config_path.exists():
-        example = _example_config_path()
+        example = example_config_path(base_dir)
         if example is not None:
             shutil.copyfile(example, config_path)
             done.append(f"{CONFIG_FILENAME} créé (réglages par défaut)")
+    else:
+        migrated = migrate_config(base_dir)
+        if migrated:
+            done.append(migrated)
     cfg = load_config(base_dir)
     if not cfg.courses_dir.exists():
         cfg.courses_dir.mkdir(parents=True)
@@ -151,36 +152,49 @@ def cmd_test(args) -> int:
     from .history import format_question
     from .logs import setup_logging
     from .pipeline import correct_screen
+    from .session import CorrectionSession
 
     cfg = _load(args)
     setup_logging(None, level=logging.INFO if args.verbose else logging.WARNING)
-    image = QImage(args.image)
-    if image.isNull():
-        print(f"Image illisible : {args.image}")
-        return 1
-    capture = capture_from_image(image, QRect(0, 0, image.width(), image.height()))
+    captures = []
+    for path in args.images:
+        image = QImage(path)
+        if image.isNull():
+            print(f"Image illisible : {path}")
+            return 1
+        captures.append((path, capture_from_image(image, QRect(0, 0, image.width(), image.height()))))
+    # Plusieurs images : traitées comme des captures successives (une question peut continuer
+    # d'une image à la suivante).
+    session = CorrectionSession()
     try:
         backend = make_backend(cfg)
-        print(f"Moteur : {backend.name} — image envoyée : {capture.image.width} × {capture.image.height}")
-        result = correct_screen(
-            capture.image,
-            backend,
-            None if args.sans_cours else CourseIndex(cfg.index_dir),
-            per_question=cfg.ia.extraits_par_question,
-            on_progress=lambda stage: print(f"  … {stage}", flush=True),
-        )
+        searcher = None if args.sans_cours else CourseIndex(cfg.index_dir)
+        for number, (path, capture) in enumerate(captures, start=1):
+            if len(captures) > 1:
+                print(f"--- {Path(path).name}")
+            print(f"Moteur : {backend.name} — image envoyée : {capture.image.width} × {capture.image.height}")
+            result = correct_screen(
+                capture.image,
+                backend,
+                searcher,
+                per_question=cfg.ia.extraits_par_question,
+                on_progress=lambda stage: print(f"  … {stage}", flush=True),
+                previous=lambda number=number: session.previous_reading(number),
+                on_reading=lambda reading, number=number: session.record_reading(number, reading),
+            )
+            result = session.merge(result)
+            if not result.questions:
+                print("Aucune question détectée sur l'image.")
+            for question in result.questions:
+                print(format_question(question, compare=result.any_ticked))
+                if question.note:
+                    print(f"        {question.note}")
+            print("Durées : " + ", ".join(f"{name} {seconds:.1f} s" for name, seconds in result.durations.items()))
     except BackendError as exc:
         print(f"Échec : {exc}")
         if args.verbose and exc.detail:
             print(f"  détail : {exc.detail}")
         return 1
-    if not result.questions:
-        print("Aucune question détectée sur l'image.")
-    for question in result.questions:
-        print(format_question(question, compare=result.any_ticked))
-        if question.note:
-            print(f"        {question.note}")
-    print("Durées : " + ", ".join(f"{name} {seconds:.1f} s" for name, seconds in result.durations.items()))
     return 0
 
 
@@ -250,8 +264,8 @@ def build_parser() -> argparse.ArgumentParser:
     search = commands.add_parser("chercher", help="cherche des passages dans les cours indexés")
     search.add_argument("requete")
     search.add_argument("-n", "--nombre", type=int, default=5, help="nombre de passages (5 par défaut)")
-    test = commands.add_parser("tester", help="corrige une image de capture d'écran et affiche les réponses")
-    test.add_argument("image")
+    test = commands.add_parser("tester", help="corrige des images de captures d'écran et affiche les réponses")
+    test.add_argument("images", nargs="+", metavar="image", help="une ou plusieurs captures, dans l'ordre")
     test.add_argument("--sans-cours", action="store_true", help="ne pas utiliser l'index des cours")
     test.add_argument("-v", "--verbose", action="store_true", help="affiche le détail technique")
     commands.add_parser("diagnostic", help="vérifie l'installation point par point")

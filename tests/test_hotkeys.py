@@ -11,9 +11,11 @@ from correcteur.hotkeys import (
     Hotkey,
     HotkeyError,
     HotkeyManager,
+    is_symbol,
     modifier_flags,
     parse_hotkey,
     virtual_key,
+    windows_binding,
 )
 
 
@@ -29,6 +31,10 @@ from correcteur.hotkeys import (
         ("pause", set(), "pause"),
         ("win+f12", {"win"}, "f12"),
         ("alt+entrée", {"alt"}, "enter"),
+        ("!", set(), "!"),
+        ("maj+!", {"shift"}, "!"),
+        ("ctrl+$", {"ctrl"}, "$"),
+        ("²", set(), "²"),
     ],
 )
 def test_analyse(text, modifiers, key):
@@ -36,7 +42,7 @@ def test_analyse(text, modifiers, key):
     assert hotkey == Hotkey(frozenset(modifiers), key)
 
 
-@pytest.mark.parametrize("text", ["", "ctrl+", "f25", "bidule+f8", "ctrl+??", "c", "7", "ctrl++c"])
+@pytest.mark.parametrize("text", ["", "ctrl+", "f25", "bidule+f8", "ctrl+??", "c", "7", "é", "ctrl++c"])
 def test_analyse_invalide(text):
     with pytest.raises(HotkeyError) as info:
         parse_hotkey(text)
@@ -95,3 +101,24 @@ def test_windows_declaration_reelle(qapp):
         assert received == ["corriger"]
     finally:
         first.stop()
+
+
+def test_signes():
+    assert all(is_symbol(ch) for ch in "!$*§²:;,")
+    assert not any(is_symbol(ch) for ch in ["a", "7", "é", " ", "", "ab"])
+    # Hors signes, la touche est déjà connue sans demander au clavier.
+    assert windows_binding(parse_hotkey("ctrl+alt+c")) == (0x0003, ord("C"))
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="dispositions de clavier Windows")
+def test_point_d_exclamation_selon_le_clavier():
+    import ctypes
+
+    user32 = ctypes.WinDLL("user32")
+    user32.LoadKeyboardLayoutW.restype = ctypes.c_void_p
+    azerty = user32.LoadKeyboardLayoutW("0000040C", 0)  # français (France)
+    qwerty = user32.LoadKeyboardLayoutW("00000409", 0)  # anglais (États-Unis)
+    # AZERTY : la touche « ! » seule (VK_OEM_8) ; QWERTY : Maj + 1.
+    assert windows_binding(parse_hotkey("!"), azerty) == (0, 0xDF)
+    assert windows_binding(parse_hotkey("!"), qwerty) == (0x0004, ord("1"))
+    assert windows_binding(parse_hotkey("ctrl+!"), azerty) == (0x0002, 0xDF)

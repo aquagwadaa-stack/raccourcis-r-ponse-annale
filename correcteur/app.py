@@ -14,12 +14,13 @@ from PySide6.QtWidgets import QApplication
 from . import capture as cap
 from .ai.base import Backend, BackendError
 from .ai.select import make_backend
-from .config import Config
+from .config import Config, save_setting
 from .courses import CourseIndex
 from .history import append_result
 from .hotkeys import HotkeyManager
 from .models import ScreenResult
 from .pipeline import correct_screen
+from .session import CorrectionSession
 from .ui.marks import MarksOverlay
 from .ui.panel import AnswerPanel
 from .ui.tray import MODE_LABELS, Tray
@@ -62,7 +63,10 @@ class CorrecteurApp(QObject):
         self._visible = True
         self._indexing = False
 
+        self.session = CorrectionSession()
+        self._hotkeys_paused = False
         self.panel = AnswerPanel(cfg.affichage)
+        self.panel.close_requested.connect(self.close_display)
         self.marks = MarksOverlay()
         self.hotkeys = HotkeyManager(self)
         self.tray: Tray | None = None
@@ -81,6 +85,7 @@ class CorrecteurApp(QObject):
             self.tray.clear_requested.connect(self.clear)
             self.tray.mode_changed.connect(self.set_mode)
             self.tray.reindex_requested.connect(self.reindex)
+            self.tray.pause_toggled.connect(self.set_hotkeys_paused)
             self.tray.open_folder_requested.connect(self.open_folder)
             self.tray.quit_requested.connect(self.quit)
             self.tray.show()
@@ -89,16 +94,7 @@ class CorrecteurApp(QObject):
     # -- démarrage et arrêt ------------------------------------------------
     def start(self) -> None:
         """Active les raccourcis et affiche l'état de départ."""
-        problems: list[str] = []
-        if self._use_hotkeys:
-            errors = self.hotkeys.start(
-                {
-                    "corriger": self.cfg.raccourcis.corriger,
-                    "masquer": self.cfg.raccourcis.masquer,
-                    "effacer": self.cfg.raccourcis.effacer,
-                }
-            )
-            problems.extend(errors.values())
+        problems: list[str] = list(self._start_hotkeys())
         try:
             self._get_backend()
         except BackendError as exc:
@@ -119,8 +115,34 @@ class CorrecteurApp(QObject):
         self.panel.set_info(ready)
         QTimer.singleShot(7000, lambda: self._clear_info(ready))
 
+    def _start_hotkeys(self) -> list[str]:
+        if not self._use_hotkeys:
+            return []
+        errors = self.hotkeys.start(
+            {
+                "corriger": self.cfg.raccourcis.corriger,
+                "masquer": self.cfg.raccourcis.masquer,
+                "effacer": self.cfg.raccourcis.effacer,
+            }
+        )
+        return list(errors.values())
+
+    def set_hotkeys_paused(self, paused: bool) -> None:
+        """Met les raccourcis en pause, par exemple pour taper un « ! » ailleurs."""
+        self._hotkeys_paused = paused
+        if paused:
+            self.hotkeys.stop()
+            message = f"Raccourcis en pause : la touche {self.cfg.raccourcis.corriger.upper()} retrouve son usage normal."
+        else:
+            problems = self._start_hotkeys()
+            message = " ".join(problems) or "Raccourcis réactivés."
+        if self.tray is not None:
+            self.tray.set_paused(paused)
+        self.panel.set_info(message)
+        QTimer.singleShot(5000, lambda: self._clear_info(message))
+
     def _clear_info(self, text: str) -> None:
-        if self.panel.lines() == [text]:
+        if self.panel.current_message() == text:
             self.panel.set_info("")
 
     def quit(self) -> None:
@@ -162,6 +184,7 @@ class CorrecteurApp(QObject):
             return
         self._captures[capture_id] = capture
         self.panel.place_on(capture.screen)
+        self.panel.set_backdrop(capture.thumbnail, capture.geometry)
         self.panel.start_capture(capture_id)
         self._pool.submit(self._work, capture_id, capture)
 
@@ -172,7 +195,16 @@ class CorrecteurApp(QObject):
             self.marks.clear()
 
     def clear(self) -> None:
+        """Repart de zéro (nouvelle annale) : réponses affichées et mémoire de la séance."""
         self.panel.clear()
+        self.marks.clear()
+        self.session.clear()
+
+    def close_display(self) -> None:
+        """Croix de l'affichage : ferme sans arrêter le correcteur ; la prochaine capture le rouvre."""
+        self._visible = False
+        self.panel.clear()
+        self.panel.set_wanted(False)
         self.marks.clear()
 
     def set_mode(self, mode: str) -> None:
@@ -183,7 +215,13 @@ class CorrecteurApp(QObject):
             self.marks.clear()
         if self.tray is not None:
             self.tray.set_mode(mode)
-        self.panel.set_info(f"Affichage : {MODE_LABELS[mode].lower()} (pour le garder, modifie config.toml).")
+        try:
+            save_setting(self.cfg.base_dir, "affichage", "mode", mode)
+        except OSError:
+            log.warning("Choix d'affichage non enregistré dans config.toml", exc_info=True)
+        message = f"Affichage : {MODE_LABELS[mode].lower()}."
+        self.panel.set_info(message)
+        QTimer.singleShot(4000, lambda: self._clear_info(message))
 
     def open_folder(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.cfg.base_dir)))
@@ -212,7 +250,10 @@ class CorrecteurApp(QObject):
                 self.index,
                 per_question=self.cfg.ia.extraits_par_question,
                 on_progress=lambda stage: self.stage_changed.emit(capture_id, stage),
+                previous=lambda: self.session.previous_reading(capture_id),
+                on_reading=lambda reading: self.session.record_reading(capture_id, reading),
             )
+            result = self.session.merge(result)
             log.info("Capture %d : %s (%.0f s)", capture_id, result.resume() or "aucune question", result.durations.get("total", 0))
             append_result(self.cfg, result, capture.image.png)
             self.capture_done.emit(capture_id, result)
