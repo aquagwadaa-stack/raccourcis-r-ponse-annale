@@ -34,11 +34,12 @@ T = TypeVar("T", bound=BaseModel)
 
 VERSION_TIMEOUT_S = 20
 INSTALL_HINT = (
-    "Claude Code est introuvable. Installe-le (voir le README, rubrique « Connexion à Claude »), "
-    "puis lance « claude » une fois dans un terminal pour te connecter."
+    "Claude Code n'est pas installé sur ce PC : double-clique sur connecter_claude.bat, "
+    "dans le dossier du correcteur."
 )
 LOGIN_HINT = (
-    "Claude Code n'est pas connecté : ouvre un terminal, lance « claude » et connecte-toi avec ton compte."
+    "Claude Code n'est pas connecté à ton compte Claude : double-clique sur connecter_claude.bat, "
+    "dans le dossier du correcteur."
 )
 
 _LOGIN_MARKERS = ("/login", "not logged in", "invalid api key", "authentication_error", "oauth token", "unauthorized")
@@ -132,20 +133,45 @@ class CliBackend:
     def check(self) -> str:
         executable = self._find()
         try:
-            done = subprocess.run(
-                [executable, "--version"],
-                capture_output=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=VERSION_TIMEOUT_S,
-                **self._platform_options(),
-            )
+            done = self._quick(executable, "--version")
         except (OSError, subprocess.SubprocessError) as exc:
             raise BackendError("Claude Code ne démarre pas.", detail=repr(exc)) from exc
-        version = (done.stdout or done.stderr).strip().splitlines()[0:1]
-        if done.returncode != 0 or not version:
+        first_line = (done.stdout or done.stderr).strip().splitlines()[0:1]
+        if done.returncode != 0 or not first_line:
             raise BackendError("Claude Code ne démarre pas.", detail=(done.stderr or done.stdout)[:500])
-        return f"abonnement Claude via {version[0]} ({executable})"
+        version = first_line[0].split()[0]
+        logged_in = self._logged_in(executable)
+        if logged_in is False:
+            raise BackendError(LOGIN_HINT, detail=f"claude auth status : non connecté ({executable})")
+        if logged_in is None:
+            return f"Claude Code {version} trouvé, connexion à ton compte non vérifiée"
+        return f"abonnement Claude connecté (Claude Code {version})"
+
+    def _quick(self, executable: str, *args: str) -> subprocess.CompletedProcess:
+        """Commande courte de ``claude`` (version, état de la connexion)."""
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+        return subprocess.run(
+            [executable, *args],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=VERSION_TIMEOUT_S,
+            env=env,
+            **self._platform_options(),
+        )
+
+    def _logged_in(self, executable: str) -> bool | None:
+        """``True`` / ``False`` selon ``claude auth status`` ; ``None`` si l'état est inconnu
+        (version de Claude Code sans cette commande, réponse inattendue)."""
+        try:
+            done = self._quick(executable, "auth", "status", "--json")
+            status = _extract_json(done.stdout or "")
+        except (OSError, subprocess.SubprocessError, ValueError):
+            log.info("État de connexion de Claude Code indisponible", exc_info=True)
+            return None
+        if isinstance(status, dict) and isinstance(status.get("loggedIn"), bool):
+            return status["loggedIn"]
+        return None
 
     # -- mécanique ---------------------------------------------------------
     def _find(self) -> str:

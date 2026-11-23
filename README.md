@@ -9,20 +9,36 @@ C'est un outil d'entraînement : il sert à vérifier tes réponses après avoir
 1. **Télécharge le projet** et décompresse-le où tu veux, par exemple `Documents\correcteur`.
 2. **Installe Python** (3.11 ou plus récent) depuis <https://www.python.org/downloads/> si tu ne l'as pas. Pendant l'installation, coche **« Add python.exe to PATH »**.
 3. Double-clique sur **`installer.bat`**. Il installe les composants et crée le fichier `config.toml` et le dossier `cours`.
-4. **Connecte Claude** (voir ci-dessous).
+4. Double-clique sur **`connecter_claude.bat`** pour relier ton abonnement Claude (détail ci-dessous).
 5. **Mets tes cours** dans le dossier `cours`, puis double-clique sur **`indexer_cours.bat`**.
 6. Double-clique sur **`diagnostic.bat`** : chaque ligne doit commencer par `[OK]`.
 7. Double-clique sur **`lancer.bat`**. Une icône verte apparaît près de l'horloge : le correcteur est prêt.
 
 ## Connexion à Claude : deux possibilités
 
-**A. Ton abonnement Claude (Pro ou Max), sans frais supplémentaires.** Le correcteur passe par Claude Code.
+**A. Ton abonnement Claude (Pro ou Max), sans frais supplémentaires.** Le correcteur passe par Claude Code, le programme de Claude pour l'ordinateur. Le plan gratuit ne suffit pas.
 
-1. Ouvre PowerShell (menu Démarrer, tape « PowerShell ») et colle :
+1. Double-clique sur **`connecter_claude.bat`**. Une fenêtre noire s'ouvre. Si Windows affiche un avertissement de sécurité, choisis « Exécuter ».
+2. Si Claude Code n'est pas encore installé, la fenêtre l'installe : pendant une à deux minutes, rien ne bouge. C'est normal, ne la ferme pas.
+3. La fenêtre explique ensuite la connexion et te demande d'appuyer sur une touche. Ton navigateur s'ouvre sur claude.ai : connecte-toi si on te le demande, puis clique sur le bouton qui autorise Claude Code.
+4. Reviens sur la fenêtre noire : elle affiche **« Connexion reussie »**. Appuie sur une touche pour la fermer.
+
+Si la page du navigateur affiche un code au lieu de se fermer : copie-le, clique dans la fenêtre noire, colle-le avec un **clic droit**, puis appuie sur **Entrée**.
+
+À faire une seule fois. `diagnostic.bat` doit ensuite afficher `[OK]  Connexion à Claude : abonnement Claude connecté`.
+
+<details>
+<summary>La même chose à la main, dans PowerShell</summary>
+
+1. Appuie sur **Windows + X**, puis choisis **Windows PowerShell** (ou **Terminal**).
+2. Colle cette ligne (clic droit ou Ctrl + V), puis appuie sur Entrée, et attends le message « Claude Code successfully installed! » :
    ```
    irm https://claude.ai/install.ps1 | iex
    ```
-2. Ferme puis rouvre PowerShell, tape `claude`, et connecte-toi avec ton compte dans le navigateur qui s'ouvre. Tu peux ensuite fermer la fenêtre.
+3. Ferme la fenêtre, rouvre PowerShell, tape `claude auth login` puis Entrée, et connecte-toi dans le navigateur.
+
+Si PowerShell répond que `claude` n'est pas reconnu, tape à la place : `& "$env:USERPROFILE\.local\bin\claude.exe" auth login`
+</details>
 
 Chaque capture consomme une part du quota de ton abonnement (deux appels à Claude, avec une image). Si tu atteins ta limite, le panneau te le dit.
 
@@ -96,7 +112,7 @@ Avec une clé API, rien n'a pu être mesuré (aucune clé n'était disponible pe
 ## En cas de problème
 
 - **Rien ne se passe sur F8** : lance `diagnostic.bat`. Si le raccourci est déjà pris par un autre programme, le panneau le signale au démarrage ; change-le dans `config.toml`.
-- **« Claude Code est introuvable »** : refais l'étape A ci-dessus, puis relance `lancer.bat`.
+- **« Claude Code n'est pas installé »** ou **« pas connecté »** : double-clique sur `connecter_claude.bat`, puis relance `lancer.bat`.
 - **« Limite d'utilisation atteinte »** : ton quota Claude est épuisé pour le moment ; réessaie après l'heure indiquée.
 - **Les coches sont décalées** : vérifie que tu n'as pas fait défiler la page ; sinon passe en `mode = "lettres"`.
 - Le détail technique des erreurs est dans `historique\correcteur.log`.

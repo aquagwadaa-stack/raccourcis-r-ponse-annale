@@ -54,6 +54,15 @@ FAKE = textwrap.dedent(
     if args == ["--version"]:
         print("9.9.9 (Claude Code)")
         sys.exit(0)
+    if args[:2] == ["auth", "status"]:
+        state = os.environ.get("FAKE_AUTH", "in")
+        if state == "unsupported":
+            sys.stderr.write("error: unknown command 'auth'")
+            sys.exit(1)
+        if "ANTHROPIC_API_KEY" in os.environ:
+            state = "key-leaked"
+        print(json.dumps({{"loggedIn": state == "in", "authMethod": "claude.ai"}}, indent=2))
+        sys.exit(0)
     system_file = args[args.index("--system-prompt-file") + 1]
     json.dump({{"args": args, "stdin": sys.stdin.read(), "cwd": os.getcwd(),
                "system": open(system_file, encoding="utf-8").read(),
@@ -146,7 +155,7 @@ def test_sortie_invalide(fake):
 @pytest.mark.parametrize(
     "result, expected",
     [
-        ({"type": "result", "subtype": "success", "is_error": True, "result": "Invalid API key · Please run /login"}, "pas connecté"),
+        ({"type": "result", "subtype": "success", "is_error": True, "result": "Invalid API key · Please run /login"}, "pas connecté à ton compte"),
         ({"type": "result", "subtype": "success", "is_error": True, "result": "You've hit your limit · resets 5:40am (UTC)"}, "resets 5:40am"),
         ({"type": "result", "subtype": "error_during_execution", "is_error": True, "result": "étrange"}, "a renvoyé une erreur"),
     ],
@@ -175,16 +184,22 @@ def test_delai_depasse(fake, monkeypatch):
 
 def test_programme_introuvable(tmp_path):
     backend = CliBackend(AIConfig(cli_commande=str(tmp_path / "absent")))
-    with pytest.raises(BackendError, match="introuvable"):
+    with pytest.raises(BackendError, match="pas installé"):
         backend.read(IMAGE)
-    with pytest.raises(BackendError, match="introuvable"):
+    with pytest.raises(BackendError, match="connecter_claude.bat"):
         backend.check()
     assert find_executable("programme-qui-n-existe-pas-xyz") is None
 
 
-def test_verification(fake):
+def test_verification(fake, monkeypatch):
     backend, _ = fake()
-    assert "9.9.9" in backend.check()
+    # La clé API n'est pas transmise : l'état affiché est celui de l'abonnement.
+    assert backend.check() == "abonnement Claude connecté (Claude Code 9.9.9)"
+    monkeypatch.setenv("FAKE_AUTH", "out")
+    with pytest.raises(BackendError, match="connecter_claude.bat"):
+        backend.check()
+    monkeypatch.setenv("FAKE_AUTH", "unsupported")
+    assert "non vérifiée" in backend.check()
 
 
 def test_outils():

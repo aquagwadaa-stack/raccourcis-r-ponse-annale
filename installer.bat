@@ -46,7 +46,8 @@ echo.
 echo === Installation terminee ===
 echo.
 echo Etapes suivantes (detail dans le fichier README.md) :
-echo   1. Connecte Claude : cle API dans cle_api.txt, ou Claude Code avec ton abonnement.
+echo   1. Double-clique sur connecter_claude.bat pour relier ton abonnement Claude.
+echo      Avec une cle API a la place : colle-la dans un fichier cle_api.txt.
 echo   2. Mets tes cours dans le dossier "cours", puis lance indexer_cours.bat.
 echo   3. Lance diagnostic.bat pour tout verifier.
 echo   4. Lance lancer.bat, puis appuie sur F8 devant une annale.
