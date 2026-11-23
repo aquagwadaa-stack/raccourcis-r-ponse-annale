@@ -61,7 +61,7 @@ def test_migration_garde_les_choix_et_remplace_les_anciens_defauts(tmp_path):
     assert message and "affichage.mode" in message and "ia.cli_modele" in message and "cours.dossier" in message
     cfg = load_config(tmp_path)
     assert cfg.raccourcis.corriger == "!"  # ancienne valeur par défaut : remplacée
-    assert cfg.affichage.taille_police == 4 and cfg.affichage.opacite == 0.9
+    assert cfg.affichage.taille_police == 4 and cfg.affichage.opacite == 1.0
     assert cfg.affichage.mode == "coches" and cfg.ia.cli_modele == "opus" and cfg.cours.dossier == "mes cours"
     assert (tmp_path / BACKUP_FILENAME).read_text(encoding="utf-8") == V1_CONFIG
     text = (tmp_path / "config.toml").read_text(encoding="utf-8")
@@ -123,3 +123,22 @@ def test_ancienne_config_du_depot_migre(tmp_path):
     assert message and "conservés" not in message  # rien n'avait été modifié
     cfg = load_config(tmp_path)
     assert cfg.raccourcis.corriger == "!" and cfg.affichage.taille_police == 4
+
+
+def test_migration_depuis_la_version_2(tmp_path):
+    """Réglages de la version précédente : opacité 0,9 remplacée, taille choisie dans le menu gardée."""
+    try:
+        old = subprocess.run(
+            ["git", "-C", str(REPO), "show", "d1fc332:config.exemple.toml"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pytest.skip("historique git indisponible")
+    path = tmp_path / "config.toml"
+    path.write_text(old, encoding="utf-8")
+    save_setting(tmp_path, "affichage", "taille_police", 5)  # choisi dans le menu de l'icône
+    message = migrate_config(tmp_path)
+    assert message and "affichage.taille_police" in message
+    cfg = load_config(tmp_path)
+    assert cfg.affichage.opacite == 1.0 and cfg.affichage.taille_police == 5
+    assert tomllib.loads(path.read_text(encoding="utf-8"))["version"] == CONFIG_VERSION == 3

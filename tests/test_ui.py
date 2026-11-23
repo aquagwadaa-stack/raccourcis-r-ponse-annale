@@ -10,7 +10,7 @@ from correcteur import capture as cap
 from correcteur.config import DisplayConfig
 from correcteur.models import QuestionResult, ScreenResult
 from correcteur.ui.marks import MarksOverlay, build_marks
-from correcteur.ui.panel import NO_QUESTION_TEXT, AnswerPanel, backdrop_luminance
+from correcteur.ui.panel import NO_QUESTION_TEXT, PALETTE, AnswerPanel
 from correcteur.ui.tray import MODE_LABELS, Tray, make_icon
 
 
@@ -122,21 +122,17 @@ def test_dessin_discret(qapp):
     assert 0 < opaque < image.width() * image.height() * 0.5  # du texte, pas de bulle
 
 
-def test_couleur_du_texte_selon_la_page(qapp):
+def test_lisible_sur_tous_les_fonds(qapp):
+    # Blanc plein entouré de noir plein : le contraste ne dépend pas de la page dessous.
+    assert all(color.alpha() == 255 for color in PALETTE.values())
+    assert PALETTE["ans"] == QColor("white") and PALETTE["halo"] == QColor("black")
     panel = AnswerPanel(DisplayConfig())
-    panel.set_result(1, result(q("1", "A")))
-    screen = qapp.primaryScreen().geometry()
-    page = QImage(160, 100, QImage.Format.Format_Grayscale8)
-    page.fill(QColor("white"))
-    panel.set_backdrop(page, screen)
-    assert panel.dark_text is True
-    page.fill(QColor("black"))
-    panel.set_backdrop(page, screen)
-    assert panel.dark_text is False
-    white = QImage(160, 100, QImage.Format.Format_Grayscale8)
-    white.fill(QColor("white"))
-    assert backdrop_luminance(white, QRect(0, 0, 1000, 500), QRect(900, 400, 100, 100)) == 255
-    assert backdrop_luminance(white, QRect(0, 0, 1000, 500), QRect(2000, 2000, 10, 10)) is None
+    assert panel.windowOpacity() == 1.0
+    panel.set_result(1, result(q("4", "ACD")))
+    image = panel.grab().toImage()
+    pixels = [image.pixelColor(x, y) for x in range(image.width()) for y in range(image.height())]
+    opaque = [c for c in pixels if c.alpha() == 255]
+    assert any(c.lightness() > 230 for c in opaque) and any(c.lightness() < 25 for c in opaque)
 
 
 def test_position(qapp):
@@ -201,7 +197,7 @@ def test_icone_et_menu(qapp):
     sizes = []
     tray.size_changed.connect(sizes.append)
     tray._size_actions[8].trigger()
-    assert sizes == [8] and tray._size_actions[8].isChecked() and set(tray._size_actions) == {4, 6, 8, 11, 14}
+    assert sizes == [8] and tray._size_actions[8].isChecked() and set(tray._size_actions) == {4, 5, 6, 8, 11, 14}
     tray.set_mode("les_deux")
     assert tray._mode_actions["les_deux"].isChecked() and set(MODE_LABELS) == set(tray._mode_actions)
     tray.notify("titre", "texte")  # sans icône visible : sans effet, sans erreur

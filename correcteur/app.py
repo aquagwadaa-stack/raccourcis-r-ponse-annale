@@ -185,7 +185,6 @@ class CorrecteurApp(QObject):
             return
         self._captures[capture_id] = capture
         self.panel.place_on(capture.screen)
-        self.panel.set_backdrop(capture.thumbnail, capture.geometry)
         self.panel.start_capture(capture_id)
         self._pool.submit(self._work, capture_id, capture)
 

@@ -66,11 +66,11 @@ Le menu de l'icône verte (clic droit) propose aussi le choix de l'affichage, la
 
 ### L'affichage (`mode` dans `config.toml`)
 
-- `"lettres"` (par défaut) : en bas à droite, le numéro de la question et les lettres à cocher, en petit, sans fond. Deux réponses au plus : les plus anciennes disparaissent (sauf si l'écran que tu viens de capturer en contient plus, pour ne jamais cacher une réponse toute fraîche). Le texte se met en foncé sur une page claire et en clair sur une page sombre. La petite croix à droite ferme l'affichage ; la capture suivante le rouvre. Tu peux le déplacer en le faisant glisser.
+- `"lettres"` (par défaut) : en bas à droite, le numéro de la question et les lettres à cocher, en petit, sans fond. Deux réponses au plus : les plus anciennes disparaissent (sauf si l'écran que tu viens de capturer en contient plus, pour ne jamais cacher une réponse toute fraîche). Le texte est blanc avec un contour noir, opaque, comme des sous-titres : il se lit sur une page blanche, colorée ou noire. La petite croix à droite ferme l'affichage ; la capture suivante le rouvre. Tu peux le déplacer en le faisant glisser.
 - `"coches"` : une coche verte sur chaque proposition à cocher, directement sur la page, et une croix rouge sur une case que tu as cochée à tort. Les clics traversent les coches. Si tu as fait défiler la page entre-temps, elles tomberaient à côté : le correcteur le détecte et affiche les lettres à la place.
 - `"les_deux"`.
 
-Réglages utiles dans `config.toml` : `taille_police` (4 par défaut ; aussi dans le menu de l'icône), `reponses_max` (2), `disposition = "ligne"` pour tout mettre sur une seule ligne, `position` pour changer de coin.
+Réglages utiles dans `config.toml` : `taille_police` (4 par défaut ; 5, 6, 8, 11 ou 14 aussi dans le menu de l'icône), `reponses_max` (2), `disposition = "ligne"` pour tout mettre sur une seule ligne, `position` pour changer de coin.
 
 ### Lire l'affichage
 

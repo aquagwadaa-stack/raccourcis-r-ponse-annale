@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, QPointF, Qt, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-FONT_SIZES = (4, 6, 8, 11, 14)
+FONT_SIZES = (4, 5, 6, 8, 11, 14)
 
 MODE_LABELS = {
     "lettres": "Lettres seules",

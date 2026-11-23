@@ -24,7 +24,7 @@ API_KEY_FILENAME = "cle_api.txt"
 ENV_BASE_DIR = "CORRECTEUR_DOSSIER"
 # Version du format de config.toml : à augmenter quand des valeurs par défaut changent,
 # pour que migrate_config remplace les anciennes valeurs par défaut restées dans le fichier.
-CONFIG_VERSION = 2
+CONFIG_VERSION = 3
 
 DISPLAY_MODES = ("lettres", "coches", "les_deux")
 LAYOUTS = ("colonne", "ligne")
@@ -49,7 +49,7 @@ class DisplayConfig:
     mode: str = "lettres"  # "lettres" | "coches" | "les_deux"
     position: str = "bas_droite"
     taille_police: int = 4  # choisi par l'étudiant ; se change depuis l'icône
-    opacite: float = 0.9
+    opacite: float = 1.0  # opaque : lisible sur tous les fonds
     reponses_max: int = 2  # les plus anciennes disparaissent au-delà
     disposition: str = "colonne"  # "colonne" : une question par ligne ; "ligne" : tout sur une ligne
     duree_coches_s: int = 30  # les coches disparaissent après ce délai (0 = jamais)
@@ -212,7 +212,7 @@ LEGACY_DEFAULTS: dict[tuple[str, str], tuple[Any, ...]] = {
     ("affichage", "mode"): ("lettres",),
     ("affichage", "position"): ("bas_droite",),
     ("affichage", "taille_police"): (20,),
-    ("affichage", "opacite"): (0.92,),
+    ("affichage", "opacite"): (0.92, 0.9),
     ("affichage", "duree_coches_s"): (30,),
     ("affichage", "comparer_mes_reponses"): (True,),
     ("ia", "backend"): ("auto",),

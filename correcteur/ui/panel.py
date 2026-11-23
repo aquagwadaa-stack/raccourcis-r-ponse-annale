@@ -1,9 +1,8 @@
-"""Affichage des réponses : quelques caractères fins posés sur l'écran, sans fond.
+"""Affichage des réponses : quelques caractères posés sur l'écran, sans fond.
 
-La fenêtre ne prend jamais le clavier (le navigateur le garde). Le texte porte un
-léger liseré de la couleur opposée pour rester lisible sur n'importe quel fond,
-et sa couleur s'adapte à la page : foncé sur une page claire, clair sur une
-page sombre.
+La fenêtre ne prend jamais le clavier (le navigateur le garde). Le texte est
+blanc, entouré d'un contour noir, le tout opaque, comme des sous-titres : il
+reste lisible sur une page blanche, colorée ou noire.
 """
 
 from __future__ import annotations
@@ -12,7 +11,7 @@ import time
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QImage, QPainter, QPen, QScreen
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
 from ..config import DisplayConfig
@@ -21,23 +20,17 @@ from ..models import QuestionResult, ScreenResult, normalize_number
 MARGIN = 12  # distance au bord de l'écran
 PAD = 3  # place pour le liseré autour du texte
 NO_QUESTION_TEXT = "aucune question sur cet écran"
-FONT_FAMILIES = ["Segoe UI Light", "Segoe UI", "Inter", "Helvetica Neue", "Arial"]
+FONT_FAMILIES = ["Segoe UI", "Inter", "Helvetica Neue", "Arial"]
 HALO_OFFSETS = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1))
 
-# (texte, liseré) par rôle, pour du texte foncé (page claire) ou clair (page sombre)
-_DARK = {
-    "ans": QColor(17, 24, 39, 235),
-    "num": QColor(17, 24, 39, 125),
-    "faint": QColor(17, 24, 39, 140),
-    "error": QColor(185, 28, 28, 235),
-    "halo": QColor(255, 255, 255, 165),
-}
-_LIGHT = {
-    "ans": QColor(248, 250, 252, 240),
-    "num": QColor(248, 250, 252, 150),
-    "faint": QColor(248, 250, 252, 150),
-    "error": QColor(252, 165, 165, 240),
-    "halo": QColor(0, 0, 0, 150),
+# Couleur du texte par rôle ; « halo » est le contour. Tout est opaque : un contour
+# translucide laissait le texte se perdre sur les fonds clairs.
+PALETTE = {
+    "ans": QColor(255, 255, 255),
+    "num": QColor(201, 206, 214),  # numéro un peu en retrait par rapport aux lettres
+    "faint": QColor(229, 231, 235),
+    "error": QColor(255, 120, 120),
+    "halo": QColor(0, 0, 0),
 }
 
 Segment = tuple[str, str]  # (texte, rôle) ; rôle parmi ans, num, faint, error, gap
@@ -51,25 +44,6 @@ class _Row:
 
 def _number_key(numero: str) -> tuple[int, str]:
     return (int(numero), "") if numero.isdigit() else (10**9, numero)
-
-
-def backdrop_luminance(thumbnail: QImage, screen_rect: QRect, area: QRect) -> float | None:
-    """Luminosité moyenne (0 à 255) de la page sous ``area``, d'après la miniature d'une capture."""
-    zone = area.intersected(screen_rect)
-    if thumbnail.isNull() or zone.isEmpty() or screen_rect.isEmpty():
-        return None
-    tw, th = thumbnail.width(), thumbnail.height()
-    x0 = max(0, int((zone.left() - screen_rect.left()) * tw / screen_rect.width()))
-    x1 = min(tw, max(x0 + 1, round((zone.right() + 1 - screen_rect.left()) * tw / screen_rect.width())))
-    y0 = max(0, int((zone.top() - screen_rect.top()) * th / screen_rect.height()))
-    y1 = min(th, max(y0 + 1, round((zone.bottom() + 1 - screen_rect.top()) * th / screen_rect.height())))
-    gray = thumbnail.convertToFormat(QImage.Format.Format_Grayscale8)
-    total = count = 0
-    for y in range(y0, y1):
-        row = bytes(gray.constScanLine(y)[: gray.width()])
-        total += sum(row[x0:x1])
-        count += x1 - x0
-    return total / count if count else None
 
 
 class AnswerPanel(QWidget):
@@ -89,8 +63,6 @@ class AnswerPanel(QWidget):
         self._screen: QScreen | None = None
         self._moved_by_user = False
         self._drag_offset: QPoint | None = None
-        self._backdrop: tuple[QImage, QRect] | None = None
-        self._dark_text = True
         self._hover_close = False
         self._close_rect = QRect()
         self._lines: list[list[Segment]] = []
@@ -179,11 +151,6 @@ class AnswerPanel(QWidget):
         self.display.taille_police = size
         self._refresh()
 
-    def set_backdrop(self, thumbnail: QImage, screen_rect: QRect) -> None:
-        """Miniature de la dernière capture, pour choisir la couleur du texte selon la page."""
-        self._backdrop = (thumbnail, QRect(screen_rect))
-        self._refresh()
-
     def has_content(self) -> bool:
         return bool(self._pending or self._rows or self._message)
 
@@ -194,10 +161,6 @@ class AnswerPanel(QWidget):
     def current_message(self) -> str | None:
         """Message d'information ou d'erreur affiché, s'il y en a un."""
         return self._message[0] if self._message else None
-
-    @property
-    def dark_text(self) -> bool:
-        return self._dark_text
 
     # -- contenu -----------------------------------------------------------
     def _row_segments(self, key: str, row: _Row) -> list[Segment]:
@@ -233,7 +196,8 @@ class AnswerPanel(QWidget):
             main = QFont()
             main.setFamilies(FONT_FAMILIES)
             main.setPointSize(size)
-            main.setWeight(QFont.Weight.Light)
+            # En très petit, un trait fin disparaît sous le contour : on épaissit un peu.
+            main.setWeight(QFont.Weight.Medium if size <= 6 else QFont.Weight.Normal)
             error = QFont(main)
             error.setPointSize(max(7, round(size * 0.85)))  # une erreur doit rester lisible
             self._font_cache = (size, main, error)
@@ -302,17 +266,9 @@ class AnswerPanel(QWidget):
         self._close_rect = QRect(width - PAD - cross, PAD + (first - cross) // 2, cross, cross)
         if not self._moved_by_user:
             self._move_to_corner()
-        self._choose_colors()
         if not self.isVisible():
             self.show()
         self.update()
-
-    def _choose_colors(self) -> None:
-        if self._backdrop is None:
-            return
-        luminance = backdrop_luminance(self._backdrop[0], self._backdrop[1], self.frameGeometry())
-        if luminance is not None:
-            self._dark_text = luminance >= 128
 
     def _move_to_corner(self) -> None:
         screen = self._screen or QGuiApplication.primaryScreen()
@@ -325,7 +281,7 @@ class AnswerPanel(QWidget):
         self.move(x, y)
 
     def paintEvent(self, _event) -> None:
-        palette = _DARK if self._dark_text else _LIGHT
+        palette = PALETTE
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
