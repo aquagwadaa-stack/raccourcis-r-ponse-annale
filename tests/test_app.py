@@ -201,7 +201,7 @@ def test_question_a_cheval_sur_deux_captures(qapp, make_app):
 def test_demarrage_mode_enregistre_et_pause(qapp, make_app, tmp_path):
     application = make_app()
     application.start()
-    assert application.panel.lines()[0].startswith("Prêt : ! pour corriger")
+    assert application.panel.current_message().startswith("Prêt : ! pour corriger")
     application.set_mode("coches")
     assert application.cfg.affichage.mode == "coches"
     assert 'mode = "coches"' in (tmp_path / "config.toml").read_text(encoding="utf-8")
@@ -211,9 +211,10 @@ def test_demarrage_mode_enregistre_et_pause(qapp, make_app, tmp_path):
     assert application.panel.display.taille_police == 11
     assert "taille_police = 11" in (tmp_path / "config.toml").read_text(encoding="utf-8")
     application.set_hotkeys_paused(True)
-    assert "pause" in application.panel.lines()[0]
+    # Messages comparés en entier : selon la largeur de l'écran, ils s'affichent sur plusieurs lignes.
+    assert "pause" in application.panel.current_message()
     application.set_hotkeys_paused(False)
-    assert application.panel.lines()[0] == "Raccourcis réactivés."
+    assert application.panel.current_message() == "Raccourcis réactivés."
 
 
 def test_reindexation_en_arriere_plan(qapp, make_app, tmp_path):
