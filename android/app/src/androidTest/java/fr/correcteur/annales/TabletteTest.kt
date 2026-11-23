@@ -66,14 +66,22 @@ class TabletteTest {
         server.shutdown()
     }
 
-    private fun shell(command: String) {
-        instrumentation.uiAutomation.executeShellCommand(command).close()
+    /** Lance une commande et attend sa fin (fermer le canal trop tôt l'interromprait). */
+    private fun shell(command: String): String {
+        val output = instrumentation.uiAutomation.executeShellCommand(command)
+        return android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes().decodeToString() }
+    }
+
+    private fun <T> withDetail(block: () -> T): T = try {
+        block()
+    } catch (e: fr.correcteur.annales.core.CorrectionError) {
+        throw AssertionError("${e.message} | ${e.detail}", e)
     }
 
     @Test
     fun bibliotheque_claude_sur_android() {
         val client = ClaudeClient("sk-ant-api03-test", Modele.OPUS, baseUrl = server.url("").toString().trimEnd('/'))
-        val screen = client.correct("iVBORw0KGgo=", null)
+        val screen = withDetail { client.correct("iVBORw0KGgo=", null) }
         client.close()
         assertEquals(listOf("B", "AC"), screen.questions.map { it.lettres() })
     }
@@ -101,10 +109,11 @@ class TabletteTest {
         prefs.taille = 8
         shell("settings put secure enabled_accessibility_services ${context.packageName}/${CorrecteurService::class.java.name}")
         shell("settings put secure accessibility_enabled 1")
+        val enabled = shell("settings get secure enabled_accessibility_services")
 
         val deadline = SystemClock.uptimeMillis() + 30_000
         while (CorrecteurService.instance == null && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(200)
-        val service = checkNotNull(CorrecteurService.instance) { "le service ne s'est pas lancé" }
+        val service = checkNotNull(CorrecteurService.instance) { "le service ne s'est pas lancé (réglage : $enabled)" }
         instrumentation.runOnMainSync { assertTrue(service.dotShown()) }
 
         instrumentation.runOnMainSync { service.capture() }
@@ -115,7 +124,7 @@ class TabletteTest {
             if (lines.contains("4  B")) break
             SystemClock.sleep(250)
         }
-        assertEquals(listOf("4  B", "5  AC"), lines)
+        assertEquals("requêtes reçues : ${bodies.size}", listOf("4  B", "5  AC"), lines)
 
         // La capture envoyée est une vraie image PNG de l'écran.
         val body = mapper.readTree(bodies.last())
